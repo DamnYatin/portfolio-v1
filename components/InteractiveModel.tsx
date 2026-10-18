@@ -73,8 +73,12 @@ function drawBootScreen(
   const W = BOOT_W;
   const H = BOOT_H;
 
+  const isLight =
+    typeof document !== "undefined" &&
+    document.documentElement.dataset.theme === "light";
+
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = "#0D0B09";
+  ctx.fillStyle = isLight ? "#F7F1E1" : "#0D0B09";
   ctx.fillRect(0, 0, W, H);
 
   if (progress <= 0) return;
@@ -104,7 +108,7 @@ function drawBootScreen(
 
         ctx.beginPath();
         ctx.arc(cx + Math.cos(a) * ring, cy + Math.sin(a) * ring, dr, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${da})`;
+        ctx.fillStyle = isLight ? `rgba(59,42,26,${da})` : `rgba(255,255,255,${da})`;
         ctx.fill();
       }
 
@@ -203,7 +207,10 @@ function LaptopScene({
     canvas.width  = BOOT_W;
     canvas.height = BOOT_H;
     const ctx = canvas.getContext("2d")!;
-    ctx.fillStyle = "#0D0B09";
+    const isLight =
+      typeof document !== "undefined" &&
+      document.documentElement.dataset.theme === "light";
+    ctx.fillStyle = isLight ? "#F7F1E1" : "#0D0B09";
     ctx.fillRect(0, 0, BOOT_W, BOOT_H);
 
     const tex = new THREE.CanvasTexture(canvas);

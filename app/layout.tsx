@@ -7,6 +7,12 @@ import CursorReticle from "../components/CursorReticle";
 import MemProbe from "../components/MemProbe";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { themeInitScript } from "../lib/theme-script";
+import { ThemeProvider } from "../components/theme/ThemeProvider";
+import { ThemeGate } from "../components/theme/ThemeGate";
+import { ThemeTopBar } from "../components/theme/ThemeTopBar";
+import "../styles/tokens.css";
+import "../styles/theme-ui.css";
 import "./globals.css";
 import "./evolution.css";
 
@@ -75,7 +81,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#0D0B09",
-  colorScheme: "dark",
+  colorScheme: "dark light",
 };
 
 export default function RootLayout({
@@ -98,45 +104,54 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
+      data-theme="dark"
       className={`${plusJakartaSans.variable} ${jetbrainsMono.variable} ${instrumentSerif.variable}`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body>
-        <Script id="scroll-restoration" strategy="beforeInteractive">
-          {`history.scrollRestoration = "manual";
+        <ThemeProvider>
+          <ThemeGate />
+          <ThemeTopBar />
+          <Script id="scroll-restoration" strategy="beforeInteractive">
+            {`history.scrollRestoration = "manual";
 if (!location.hash) window.scrollTo(0, 0);`}
-        </Script>
-        {/* Film-grain noise overlay — fixed, pointer-events-none, adds physical texture */}
-        <div className="grain-overlay" aria-hidden="true" />
-        {/* Person structured data for name-search rich results */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "Person",
-              name: "Jonathan Jesni",
-              url: SITE_URL,
-              jobTitle: "AI & Systems Developer",
-              alumniOf: {
-                "@type": "CollegeOrUniversity",
-                name: "Indian Institute of Information Technology, Pune",
-              },
-              sameAs: [
-                "https://github.com/Jonathan-Jesni",
-                "https://www.linkedin.com/in/jonathan-jesni/",
-              ],
-            }),
-          }}
-        />
-        <SmoothScroll>{children}</SmoothScroll>
-        {/* Detection-reticle cursor — body-level sibling so position:fixed is
-            never trapped inside a transformed ancestor. Renders null on
-            touch / reduced-motion. */}
-        <CursorReticle />
-        {/* Temporary OOM-investigation HUD — renders nothing without ?memprobe */}
-        <MemProbe />
-        <Analytics />
-        <SpeedInsights />
+          </Script>
+          {/* Film-grain noise overlay — fixed, pointer-events-none, adds physical texture */}
+          <div className="grain-overlay" aria-hidden="true" />
+          {/* Person structured data for name-search rich results */}
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "Person",
+                name: "Jonathan Jesni",
+                url: SITE_URL,
+                jobTitle: "AI & Systems Developer",
+                alumniOf: {
+                  "@type": "CollegeOrUniversity",
+                  name: "Indian Institute of Information Technology, Pune",
+                },
+                sameAs: [
+                  "https://github.com/Jonathan-Jesni",
+                  "https://www.linkedin.com/in/jonathan-jesni/",
+                ],
+              }),
+            }}
+          />
+          <SmoothScroll>{children}</SmoothScroll>
+          {/* Detection-reticle cursor — body-level sibling so position:fixed is
+              never trapped inside a transformed ancestor. Renders null on
+              touch / reduced-motion. */}
+          <CursorReticle />
+          {/* Temporary OOM-investigation HUD — renders nothing without ?memprobe */}
+          <MemProbe />
+          <Analytics />
+          <SpeedInsights />
+        </ThemeProvider>
       </body>
     </html>
   );

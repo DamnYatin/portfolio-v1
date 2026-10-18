@@ -53,12 +53,18 @@ const buildFragment = (octaves: number) => /* glsl */ `
   uniform float uTime;
   uniform float uActive;
   uniform vec2  uResolution;
+  uniform float uTheme;
 
   /* ── colour ramp ── */
-  const vec3 WHITE_HOT = vec3(0.980, 0.961, 0.933); // #FAF5EE white-hot edge
-  const vec3 ORANGE    = vec3(0.788, 0.659, 0.322); // #C9A852 antique gold mid
-  const vec3 CHAMPAGNE = vec3(0.220, 0.157, 0.063); // #38280F cooling char-gold
-  const vec3 CHAR      = vec3(0.035, 0.027, 0.020); // deep warm char
+  const vec3 WHITE_HOT_DARK = vec3(0.980, 0.961, 0.933); // #FAF5EE white-hot edge
+  const vec3 ORANGE_DARK    = vec3(0.788, 0.659, 0.322); // #C9A852 antique gold mid
+  const vec3 CHAMPAGNE_DARK = vec3(0.220, 0.157, 0.063); // #38280F cooling char-gold
+  const vec3 CHAR_DARK      = vec3(0.035, 0.027, 0.020); // deep warm char
+
+  const vec3 WHITE_HOT_LIGHT = vec3(0.788, 0.541, 0.106); // #C98A1B amber edge
+  const vec3 ORANGE_LIGHT    = vec3(0.639, 0.420, 0.059); // #A36B0F deep amber
+  const vec3 CHAMPAGNE_LIGHT = vec3(0.480, 0.300, 0.080); // warm brown
+  const vec3 CHAR_LIGHT      = vec3(0.231, 0.165, 0.102); // sepia char (#3B2A1A)
 
   /* ── 2D value-noise → fbm ── */
   float hash(vec2 p) {
@@ -91,6 +97,12 @@ const buildFragment = (octaves: number) => /* glsl */ `
   }
 
   void main() {
+    /* interpolate color ramps between dark and light themes */
+    vec3 WHITE_HOT = mix(WHITE_HOT_DARK, WHITE_HOT_LIGHT, uTheme);
+    vec3 ORANGE    = mix(ORANGE_DARK, ORANGE_LIGHT, uTheme);
+    vec3 CHAMPAGNE = mix(CHAMPAGNE_DARK, CHAMPAGNE_LIGHT, uTheme);
+    vec3 CHAR      = mix(CHAR_DARK, CHAR_LIGHT, uTheme);
+
     /* aspect-correct sample coords so the flame never stretches */
     vec2 st = vUv;
     st.x *= uResolution.x / uResolution.y;
@@ -168,6 +180,7 @@ export function BurnPlane() {
           uActive: { value: 0 },
           uTime: { value: 0 },
           uResolution: { value: new THREE.Vector2(1, 1) },
+          uTheme: { value: 0 },
         },
         transparent: true,
         depthTest: false,
@@ -193,6 +206,9 @@ export function BurnPlane() {
 
   useFrame((state) => {
     const active = burnControls.getActive();
+    const isLight =
+      typeof document !== "undefined" &&
+      document.documentElement.dataset.theme === "light";
     /* eslint-disable react-hooks/immutability -- in-place uniform writes
        are the canonical R3F per-frame pattern (no allocation, no React
        work). The "immutable" alternative — passing `uniforms` as a JSX
@@ -201,6 +217,7 @@ export function BurnPlane() {
     material.uniforms.uProgress.value = burnControls.getProgress();
     material.uniforms.uActive.value = active ? 1 : 0;
     material.uniforms.uTime.value = state.clock.elapsedTime;
+    material.uniforms.uTheme.value = isLight ? 1 : 0;
     /* eslint-enable react-hooks/immutability */
     // While the burn is live, self-sustain the demand loop so the flame
     // keeps flickering even when the scroll is held perfectly still.

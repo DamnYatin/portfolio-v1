@@ -68,7 +68,7 @@ export default function AboutSection() {
         tl.to(
           words,
           {
-            color: "rgba(228, 222, 207, 1)",
+            color: "var(--ink-1)",
             ease: "none",
             stagger: {
               each: 0.04,
@@ -94,7 +94,7 @@ export default function AboutSection() {
         const words = textColRef.current
           ? Array.from(textColRef.current.querySelectorAll<HTMLElement>(".reveal-word"))
           : [];
-        gsap.set(words, { color: "rgba(228, 222, 207, 1)" });
+        gsap.set(words, { color: "var(--ink-1)" });
         gsap.set(terminalRef.current, { opacity: 1, y: 0, clearProps: "filter" });
       });
 
@@ -104,7 +104,7 @@ export default function AboutSection() {
         /* Words are immediately visible; terminal fades in once */
         if (textColRef.current) {
           const words = Array.from(textColRef.current.querySelectorAll<HTMLElement>(".reveal-word"));
-          gsap.set(words, { color: "rgba(228, 222, 207, 1)" });
+          gsap.set(words, { color: "var(--ink-1)" });
         }
         if (terminalRef.current) {
           gsap.set(terminalRef.current, { opacity: 0 });
@@ -122,7 +122,7 @@ export default function AboutSection() {
       const words = textColRef.current
         ? Array.from(textColRef.current.querySelectorAll<HTMLElement>(".reveal-word"))
         : [];
-      gsap.set(words, { color: "rgba(228, 222, 207, 1)" });
+      gsap.set(words, { color: "var(--ink-1)" });
       gsap.set(terminalRef.current, { opacity: 1, y: 0, clearProps: "filter" });
       window.dispatchEvent(new CustomEvent(MOTION_FAILED_EVENT));
     }

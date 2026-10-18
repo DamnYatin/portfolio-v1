@@ -13,7 +13,7 @@ interface CircuitUnderlineProps {
 
 export function CircuitUnderline({
   children,
-  color = "#C9A852", // antique gold default
+  color = "var(--accent)", // antique gold / golden amber default
   delay = 0,
   animate = true,
 }: CircuitUnderlineProps) {
@@ -135,7 +135,7 @@ export function CircuitUnderline({
             ref={dotRef}
             d={pathD}
             fill="none"
-            stroke="#ffffff"
+            stroke="var(--accent-bright)"
             strokeWidth="3.5"
             strokeLinecap="round"
             strokeLinejoin="miter"

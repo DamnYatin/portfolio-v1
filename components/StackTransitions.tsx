@@ -356,8 +356,8 @@ export default function StackTransitions() {
              the same scrub. */
           tl.fromTo(
             veil,
-            { backgroundColor: "#161310", opacity: 0 },
-            { backgroundColor: "#0D0B09", opacity: cfg.veil, ease: "none" },
+            { backgroundColor: "var(--surface-1)", opacity: 0 },
+            { backgroundColor: "var(--surface-0)", opacity: cfg.veil, ease: "none" },
             0
           );
         }

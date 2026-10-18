@@ -247,7 +247,7 @@ export default function Home() {
       <div
         id="preloader-mask"
         aria-hidden="true"
-        style={{ position: "fixed", inset: 0, zIndex: 9999, background: "#0D0B09" }}
+        style={{ position: "fixed", inset: 0, zIndex: 9999, background: "var(--surface-0)" }}
       />
       <PreLoader onComplete={() => setPreloaderDone(true)} />
       <a className="skip-link" href="#main-content">

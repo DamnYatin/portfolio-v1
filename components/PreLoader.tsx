@@ -16,6 +16,7 @@ import gsap from "gsap";
 import { getLenis } from "../lib/lenisInstance";
 import { loaderControls } from "../lib/loaderControls";
 import { resolveMotionEnvironment } from "../lib/motionEnvironment";
+import { useTheme } from "./theme/ThemeProvider";
 
 /* ================================================================
    PreLoader — "Liquid Obsidian" honest-manifest burn loader
@@ -88,7 +89,7 @@ const TERMINAL_TEXT_STYLE: React.CSSProperties = {
   lineHeight: 1.5,
   letterSpacing: "0.04em",
   textTransform: "uppercase",
-  color: "rgba(226, 226, 226, 0.7)",
+  color: "var(--ink-1)",
   whiteSpace: "nowrap",
 };
 
@@ -110,11 +111,16 @@ const FRAGMENT = /* glsl */ `
   uniform float uSpeed;         // 0→1 load progress, lerped — drives churn violence
   uniform float uBurnProgress;  // 0→1 GSAP exit tween — radial burn mask
   uniform vec2  uResolution;
+  uniform float uTheme;
 
-  /* ── liquid obsidian field palette ── */
-  const vec3 OBSIDIAN = vec3(0.051, 0.043, 0.035); // #0D0B09 — --surface-0 linear
-  const vec3 GUNMETAL = vec3(0.086, 0.075, 0.063); // #161310 — --surface-1 linear
-  const vec3 SHEEN    = vec3(0.941, 0.910, 0.824); // faint cream specular glint
+  /* ── liquid field palette (dark & light) ── */
+  const vec3 OBSIDIAN_DARK = vec3(0.051, 0.043, 0.035); // #0D0B09 — --surface-0 linear
+  const vec3 GUNMETAL_DARK = vec3(0.086, 0.075, 0.063); // #161310 — --surface-1 linear
+  const vec3 SHEEN_DARK    = vec3(0.941, 0.910, 0.824); // faint cream specular glint
+
+  const vec3 OBSIDIAN_LIGHT = vec3(0.968, 0.945, 0.882); // #F7F1E1 — --surface-0 linear
+  const vec3 GUNMETAL_LIGHT = vec3(0.937, 0.905, 0.823); // #EFE7D2 — --surface-1 linear
+  const vec3 SHEEN_LIGHT    = vec3(0.788, 0.541, 0.106); // amber specular glint
 
   /* ── hot-rim ramp — lifted verbatim from BurnTransition.tsx ── */
   const vec3 WHITE_HOT = vec3(0.980, 0.961, 0.933); // #FAF5EE white-hot edge
@@ -165,6 +171,10 @@ const FRAGMENT = /* glsl */ `
       fbm(p + vec2(5.2, 1.3) - uTime * 0.15)
     );
     float churn = fbm(p + warp * (0.8 + uSpeed * 1.1) + vec2(0.0, -uTime * 0.10));
+
+    vec3 OBSIDIAN = mix(OBSIDIAN_DARK, OBSIDIAN_LIGHT, uTheme);
+    vec3 GUNMETAL = mix(GUNMETAL_DARK, GUNMETAL_LIGHT, uTheme);
+    vec3 SHEEN    = mix(SHEEN_DARK, SHEEN_LIGHT, uTheme);
 
     vec3 col = mix(OBSIDIAN, GUNMETAL, smoothstep(0.30, 0.78, churn));
 
@@ -219,6 +229,7 @@ const LiquidObsidianMaterial = shaderMaterial(
     uSpeed: 0,
     uBurnProgress: 0,
     uResolution: new THREE.Vector2(1, 1),
+    uTheme: 0,
   },
   VERTEX,
   FRAGMENT
@@ -230,6 +241,7 @@ type LiquidObsidianMaterialImpl = THREE.ShaderMaterial & {
   uSpeed: number;
   uBurnProgress: number;
   uResolution: THREE.Vector2;
+  uTheme: number;
 };
 
 declare module "@react-three/fiber" {
@@ -292,6 +304,11 @@ export function ObsidianPlane() {
     mat.uTime = churnTimeRef.current;
     mat.uSpeed = speedRef.current;
     mat.uBurnProgress = loaderControls.getBurnProgress();
+    mat.uTheme =
+      typeof document !== "undefined" &&
+      document.documentElement.dataset.theme === "light"
+        ? 1.0
+        : 0.0;
 
     // The shared stage uses frameloop="demand". The liquid is time-based
     // while active, then becomes completely idle once its exit finishes.
@@ -331,6 +348,7 @@ interface PreLoaderProps {
 }
 
 export default function PreLoader({ onComplete }: PreLoaderProps) {
+  const { hasChosen } = useTheme();
   const [lines, setLines] = useState<string[]>(["> INIT RENDER PIPELINE ..."]);
   const [floorPassed, setFloorPassed] = useState(false);
   const [readyPrinted, setReadyPrinted] = useState(false);
@@ -441,7 +459,7 @@ export default function PreLoader({ onComplete }: PreLoaderProps) {
   /* Mobile policy, WebGL loss/unavailability, and reduced motion retain the
      loader's visual identity as a short static surface without another context. */
   useEffect(() => {
-    if (!staticFallback || isComplete) return;
+    if (!staticFallback || isComplete || !hasChosen) return;
     loaderControls.setActive(false);
     document.getElementById("preloader-mask")?.remove();
 
@@ -525,7 +543,7 @@ export default function PreLoader({ onComplete }: PreLoaderProps) {
     return () => {
       fade.kill();
     };
-  }, [environment.reducedMotion, isComplete, staticFallback, mobileTerminalBoot]);
+  }, [environment.reducedMotion, isComplete, staticFallback, mobileTerminalBoot, hasChosen]);
 
   /* ── Honest manifest capture: CHAIN onto the global manager's
         onProgress (fired per itemEnd, i.e. per completed asset).
@@ -607,12 +625,14 @@ export default function PreLoader({ onComplete }: PreLoaderProps) {
   useEffect(() => {
     if (staticFallback || isComplete) return;
     const floor = setTimeout(() => setFloorPassed(true), FLOOR_MS);
-    const ceiling = setTimeout(() => startBurn(), FAILSAFE_MS);
+    const ceiling = setTimeout(() => {
+      if (hasChosen) startBurn();
+    }, FAILSAFE_MS);
     return () => {
       clearTimeout(floor);
       clearTimeout(ceiling);
     };
-  }, [isComplete, startBurn, staticFallback]);
+  }, [isComplete, startBurn, staticFallback, hasChosen]);
 
   /* ── Print queue drain: one line per tick keeps the terminal
         legible even when 50 assets resolve in 50ms. Once drained AND
@@ -639,8 +659,8 @@ export default function PreLoader({ onComplete }: PreLoaderProps) {
   /* ── The logic gate: A is folded into C (READY only prints once
         assetsDone && queue drained), so burn ⇐ B && C. ── */
   useEffect(() => {
-    if (!staticFallback && floorPassed && readyPrinted) startBurn();
-  }, [floorPassed, readyPrinted, startBurn, staticFallback]);
+    if (!staticFallback && floorPassed && readyPrinted && hasChosen) startBurn();
+  }, [floorPassed, readyPrinted, startBurn, staticFallback, hasChosen]);
 
   /* Kill in-flight tweens if we unmount mid-burn */
   useEffect(() => {
@@ -663,7 +683,7 @@ export default function PreLoader({ onComplete }: PreLoaderProps) {
           inset: 0,
           zIndex: 9999,
           background:
-            "radial-gradient(circle at 18% 82%, rgba(201,168,82,.12), transparent 42%), radial-gradient(circle at 72% 18%, rgba(143,168,196,.07), transparent 38%), #0D0B09",
+            "radial-gradient(circle at 18% 82%, rgba(201,168,82,.12), transparent 42%), radial-gradient(circle at 72% 18%, rgba(143,168,196,.07), transparent 38%), var(--surface-0)",
           pointerEvents: "none",
           overflow: "hidden",
         }}

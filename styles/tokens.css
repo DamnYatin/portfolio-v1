@@ -1,0 +1,203 @@
+/* ============================================================
+   DESIGN TOKENS — Single Source of Truth
+   Dual Theme System: OLED Obsidian Dark & Sepia Paper Light
+   ============================================================ */
+
+/* Default :root fallback (matches dark theme pixel-for-pixel) */
+:root,
+:root[data-theme="dark"] {
+  /* Surface palette - Warm Obsidian hierarchy */
+  --surface-0: #0D0B09;
+  --surface-1: #161310;
+  --surface-2: #1F1B18;
+  --surface-3: #2B2520;
+  --surface-4: #383028;
+
+  /* Aliases */
+  --bg: var(--surface-0);
+  --bg-elevated: var(--surface-1);
+  --surface: var(--surface-1);
+
+  /* Ink palette - warm cream on warm obsidian */
+  --ink-0: #FAF5EE; /* warm cream white - display headings only */
+  --ink-1: #EDE5D8; /* primary body text */
+  --ink-2: #C4B8A8; /* secondary text */
+  --ink-3: #8A7D6E; /* muted - warm grey, WCAG AA on --surface-1 */
+  --ink-4: #4E4440; /* hairline structures */
+
+  /* Text Aliases */
+  --text: var(--ink-1);
+  --text-muted: var(--ink-3);
+  --text-faint: var(--ink-4);
+
+  /* Borders - gold-tinted glass-plate system */
+  --border-hairline: rgba(232, 201, 122, 0.04);
+  --border-subtle:   rgba(232, 201, 122, 0.08);
+  --border-default:  var(--surface-3);
+  --border-hover:    rgba(201, 168, 82, 0.25);
+  --surface-border:  var(--border-subtle);
+
+  /* Inner edge highlights for Double-Bezel architecture */
+  --edge-top:  rgba(201, 168, 82, 0.15);
+  --edge-glow: rgba(201, 168, 82, 0.05);
+
+  /* Accent - Antique Gold */
+  --accent:        #C9A852;
+  --accent-rgb:    201, 168, 82;
+  --accent-bright: #E8C97A;
+  --accent-deep:   #A07C2E;
+  --accent-muted:  #7A5E22;
+  --accent-glow:   rgba(201, 168, 82, 0.20);
+  --accent-dim:    rgba(201, 168, 82, 0.09);
+  --accent-cool:   #8FA8C4;
+
+  /* Status and syntax tokens */
+  --status-green:  #22C55E;
+  --term-key:      #D8BC87;
+  --term-str:      #AEC6A4;
+  --term-punct:    #525E78;
+  --data-blue:     #2F7FBF;
+  --data-red:      #EF4444;
+  --data-yellow:   #EAB308;
+
+  /* Physical shadows - tinted to the warm obsidian ground */
+  --shadow-card:  0 1px 2px rgba(13, 11, 9, 0.8), 0 8px 32px rgba(13, 11, 9, 0.6), 0 24px 64px rgba(13, 11, 9, 0.4);
+  --shadow-hover: 0 1px 2px rgba(13, 11, 9, 0.9), 0 12px 40px rgba(13, 11, 9, 0.7), 0 32px 80px rgba(13, 11, 9, 0.5);
+
+  /* Textures */
+  --grain-opacity: 0.032;
+  --glow-strength: 1;
+
+  /* Lighting & Canvas blending */
+  --canvas-filter: none;
+  --lightning-blend: normal;
+  --lightning-opacity: 1;
+}
+
+/* ============================================================
+   LIGHT THEME — Warm Sepia Paper Palette
+   Inspired by cozy Obsidian sepia & fine printed typography
+   ============================================================ */
+:root[data-theme="light"] {
+  /* Surface palette - Warm cream paper hierarchy */
+  --surface-0: #F7F1E1; /* main page cream */
+  --surface-1: #EFE7D2; /* slightly darker beige for alternate sections & panels */
+  --surface-2: #E8DEC5; /* elevated cards, pill backgrounds */
+  --surface-3: #DED3B6; /* hover states */
+  --surface-4: #D0C3A0; /* active states */
+
+  /* Aliases */
+  --bg: var(--surface-0);
+  --bg-elevated: var(--surface-1);
+  --surface: #FBF7EA; /* lighter warm cream card surface */
+
+  /* Ink palette - deep espresso & warm brown (NEVER pure black) */
+  --ink-0: #261A10; /* deep espresso display headings */
+  --ink-1: #3B2A1A; /* primary dark brown body text (WCAG AAA) */
+  --ink-2: #5C4835; /* secondary warm brown */
+  --ink-3: #786654; /* soft taupe grey-brown (WCAG AA compliant > 4.8:1) */
+  --ink-4: #9E8C78; /* hairline structures & subtle borders */
+
+  /* Text Aliases */
+  --text: var(--ink-1);
+  --text-muted: var(--ink-3);
+  --text-faint: var(--ink-4);
+
+  /* Borders - warm amber-tinted sepia hairlines */
+  --border-hairline: rgba(59, 42, 26, 0.08);
+  --border-subtle:   rgba(59, 42, 26, 0.14);
+  --border-default:  rgba(59, 42, 26, 0.20);
+  --border-hover:    rgba(201, 138, 27, 0.40);
+  --surface-border:  var(--border-subtle);
+
+  /* Inner edge highlights for Double-Bezel architecture (warm paper refraction) */
+  --edge-top:  rgba(255, 255, 255, 0.85);
+  --edge-glow: rgba(201, 138, 27, 0.08);
+
+  /* Accent - Golden Amber */
+  --accent:        #C98A1B;
+  --accent-rgb:    201, 138, 27;
+  --accent-bright: #D4901E;
+  --accent-deep:   #A36B0F;
+  --accent-muted:  #8F5E10;
+  --accent-glow:   rgba(201, 138, 27, 0.35);
+  --accent-dim:    rgba(201, 138, 27, 0.12);
+  --accent-cool:   #2F7FBF;
+
+  /* Status and syntax tokens */
+  --status-green:  #3FAE7A;
+  --term-key:      #A0452A; /* warm terracotta red */
+  --term-str:      #2E724F; /* forest green / teal */
+  --term-punct:    #8A7A66; /* warm slate taupe */
+  --data-blue:     #2F7FBF;
+  --data-red:      #D9453B;
+  --data-yellow:   #D9A21B;
+
+  /* Physical shadows - soft warm brown ambient occlusion (no neon glow) */
+  --shadow-card:  0 1px 3px rgba(59, 42, 26, 0.06), 0 8px 24px rgba(59, 42, 26, 0.08), 0 20px 48px rgba(59, 42, 26, 0.06);
+  --shadow-hover: 0 2px 4px rgba(59, 42, 26, 0.08), 0 12px 32px rgba(59, 42, 26, 0.12), 0 24px 60px rgba(59, 42, 26, 0.08);
+
+  /* Textures */
+  --grain-opacity: 0.02;
+  --glow-strength: 0.6;
+
+  /* Lighting & Canvas blending */
+  --canvas-filter: saturate(0.9) contrast(0.98);
+  --lightning-blend: multiply;
+  --lightning-opacity: 0.85;
+}
+
+/* ============================================================
+   THEME TRANSITIONS
+   View Transitions API circular reveal + graceful fallback
+   ============================================================ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 99999;
+}
+
+/* Fallback transition class applied during manual theme toggles */
+html.theme-transitioning,
+html.theme-transitioning body,
+html.theme-transitioning [data-theme] {
+  transition:
+    background-color 300ms var(--ease-out-expo),
+    color 300ms var(--ease-out-expo),
+    border-color 300ms var(--ease-out-expo),
+    box-shadow 300ms var(--ease-out-expo) !important;
+}
+
+/* Selection and caret */
+::selection {
+  background: var(--accent-dim);
+  color: inherit;
+}
+
+/* Scrollbar in both themes */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-0);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border: 2px solid var(--surface-0);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--surface-4);
+}
