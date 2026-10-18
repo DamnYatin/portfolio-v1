@@ -18,6 +18,8 @@ interface ThemeContextValue {
   closeGate: () => void;
   isLoaderDone: boolean;
   setLoaderDone: (done: boolean) => void;
+  heroEntranceReady: boolean;
+  triggerHeroEntrance: () => void;
   systemHint: Theme;
 }
 
@@ -57,9 +59,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   });
 
   const [isLoaderDone, setIsLoaderDoneState] = useState<boolean>(false);
-
-  // If dev override is provided, gate is never opened
   const [isGateOpen, setIsGateOpen] = useState<boolean>(false);
+  const [heroEntranceReady, setHeroEntranceReady] = useState<boolean>(() => {
+    return devTheme !== null;
+  });
 
   const [systemHint, setSystemHint] = useState<Theme>(() => {
     if (typeof window === "undefined") return "dark";
@@ -84,7 +87,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       document.documentElement.dataset.theme = devTheme;
       document.documentElement.style.colorScheme = devTheme;
       document.documentElement.removeAttribute("data-gate");
+      document.documentElement.dataset.intro = "active";
       updateThemeMeta(devTheme);
+    } else {
+      document.documentElement.dataset.intro = "pending";
     }
   }, [devTheme]);
 
@@ -106,7 +112,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         if (typeof document !== "undefined") {
           document.documentElement.dataset.gate = "open";
         }
+      } else {
+        setHeroEntranceReady(true);
       }
+    }
+  }, []);
+
+  const triggerHeroEntrance = useCallback(() => {
+    setHeroEntranceReady(true);
+    if (typeof document !== "undefined") {
+      document.documentElement.dataset.intro = "active";
     }
   }, []);
 
@@ -117,6 +132,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Safety fallback: if user is on site and 4s have elapsed after loader, ensure entrance fired
+  useEffect(() => {
+    if (!isLoaderDone) return;
+    const timer = setTimeout(() => {
+      triggerHeroEntrance();
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [isLoaderDone, triggerHeroEntrance]);
+
   const value = useMemo(
     () => ({
       theme,
@@ -125,9 +149,21 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       closeGate,
       isLoaderDone,
       setLoaderDone,
+      heroEntranceReady,
+      triggerHeroEntrance,
       systemHint,
     }),
-    [theme, setTheme, isGateOpen, closeGate, isLoaderDone, setLoaderDone, systemHint]
+    [
+      theme,
+      setTheme,
+      isGateOpen,
+      closeGate,
+      isLoaderDone,
+      setLoaderDone,
+      heroEntranceReady,
+      triggerHeroEntrance,
+      systemHint,
+    ]
   );
 
   return (

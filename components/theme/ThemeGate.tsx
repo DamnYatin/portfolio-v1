@@ -7,22 +7,10 @@ import React, {
   useCallback,
 } from "react";
 import { useTheme, type Theme } from "./ThemeProvider";
-import { getLenis } from "../../lib/lenisInstance";
+import { scrollLock } from "../../lib/scrollLock";
 
 interface ThemeGateProps {
   onSelect?: (theme: Theme) => void;
-}
-
-interface Particle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  size: number;
-  life: number;
-  maxLife: number;
-  color: [number, number, number];
-  isAsh: boolean;
 }
 
 /* ================================================================
@@ -70,7 +58,7 @@ float fbm(vec2 p) {
   float v = 0.0;
   float amp = 0.5;
   mat2 rot = mat2(0.80, 0.60, -0.60, 0.80);
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 4; i++) {
     v += amp * noise(p);
     p = rot * p * 2.05;
     amp *= 0.5;
@@ -105,7 +93,7 @@ void main() {
 
   // Paper base procedural texture
   vec3 paperBase = vec3(0.91, 0.87, 0.79); // warm sepia cream paper
-  float paperNoise = fbm(pixelCoord * 0.02) * 0.06;
+  float paperNoise = fbm(pixelCoord * 0.02) * 0.05;
   vec3 paperCol = paperBase - vec3(paperNoise);
 
   // Soft edge vignette
@@ -160,7 +148,14 @@ void main() {
 `;
 
 export function ThemeGate({ onSelect }: ThemeGateProps) {
-  const { isGateOpen, closeGate, isLoaderDone, setTheme, systemHint } = useTheme();
+  const {
+    isGateOpen,
+    closeGate,
+    isLoaderDone,
+    setTheme,
+    systemHint,
+    triggerHeroEntrance,
+  } = useTheme();
 
   const [focusedIndex, setFocusedIndex] = useState<number>(() =>
     systemHint === "light" ? 1 : 0
@@ -174,26 +169,105 @@ export function ThemeGate({ onSelect }: ThemeGateProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Lock body scroll and pause Lenis while gate is open
+  // WebGL pre-compiled resources
+  const glRef = useRef<WebGL2RenderingContext | null>(null);
+  const programRef = useRef<WebGLProgram | null>(null);
+  const quadBufferRef = useRef<WebGLBuffer | null>(null);
+  const uniformLocsRef = useRef<{
+    uResolution: WebGLUniformLocation | null;
+    uOrigin: WebGLUniformLocation | null;
+    uProgress: WebGLUniformLocation | null;
+    uTime: WebGLUniformLocation | null;
+  }>({ uResolution: null, uOrigin: null, uProgress: null, uTime: null });
+
+  const heroEntranceTriggeredRef = useRef(false);
+
+  // Lock body scroll and pause Lenis while gate is open via scrollLock
   useEffect(() => {
     if (!isGateOpen) return;
+    scrollLock.lock();
+    return () => {
+      scrollLock.unlock();
+    };
+  }, [isGateOpen]);
 
-    const originalBodyOverflow = document.body.style.overflow;
-    const originalHtmlOverflow = document.documentElement.style.overflow;
+  // Pre-compile shader & initialize WebGL2 while gate is idle on mount
+  useEffect(() => {
+    if (!isGateOpen) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
+    try {
+      const gl = canvas.getContext("webgl2", {
+        alpha: true,
+        antialias: false,
+        premultipliedAlpha: true,
+        powerPreference: "high-performance",
+      });
+      if (!gl) return;
 
-    const lenis = getLenis();
-    if (lenis) {
-      lenis.stop();
+      glRef.current = gl;
+
+      const createShader = (type: number, src: string) => {
+        const s = gl.createShader(type);
+        if (!s) return null;
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        return s;
+      };
+
+      const vs = createShader(gl.VERTEX_SHADER, VS_SOURCE);
+      const fs = createShader(gl.FRAGMENT_SHADER, FS_SOURCE);
+      if (!vs || !fs) return;
+
+      const program = gl.createProgram();
+      if (!program) return;
+      gl.attachShader(program, vs);
+      gl.attachShader(program, fs);
+      gl.linkProgram(program);
+
+      programRef.current = program;
+
+      const quadBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
+        gl.STATIC_DRAW
+      );
+      quadBufferRef.current = quadBuffer;
+
+      const posLoc = gl.getAttribLocation(program, "position");
+      gl.enableVertexAttribArray(posLoc);
+      gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+      uniformLocsRef.current = {
+        uResolution: gl.getUniformLocation(program, "uResolution"),
+        uOrigin: gl.getUniformLocation(program, "uOrigin"),
+        uProgress: gl.getUniformLocation(program, "uProgress"),
+        uTime: gl.getUniformLocation(program, "uTime"),
+      };
+
+      // Warm-up draw call: 1 frame at progress 0 so the GPU compiles the pipeline
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.useProgram(program);
+      gl.uniform2f(uniformLocsRef.current.uResolution, canvas.width, canvas.height);
+      gl.uniform2f(uniformLocsRef.current.uOrigin, canvas.width / 2, canvas.height / 2);
+      gl.uniform1f(uniformLocsRef.current.uProgress, 0.0);
+      gl.uniform1f(uniformLocsRef.current.uTime, 0.0);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    } catch {
+      // fallback handled gracefully
     }
 
     return () => {
-      document.body.style.overflow = originalBodyOverflow;
-      document.documentElement.style.overflow = originalHtmlOverflow;
-      if (lenis) {
-        lenis.start();
+      const gl = glRef.current;
+      if (gl) {
+        if (quadBufferRef.current) gl.deleteBuffer(quadBufferRef.current);
+        if (programRef.current) gl.deleteProgram(programRef.current);
       }
     };
   }, [isGateOpen]);
@@ -218,236 +292,188 @@ export function ThemeGate({ onSelect }: ThemeGateProps) {
     (originX: number, originY: number, chosenTheme: Theme) => {
       const canvas = canvasRef.current;
       const contentEl = contentRef.current;
+      const gl = glRef.current;
+      const program = programRef.current;
 
       const reducedMotion =
         typeof window !== "undefined" &&
         window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-      // Immediately switch the theme underneath so the revealed site is already styled
+      // 1. Immediately apply the theme switch behind the paper
       setTheme(chosenTheme);
       onSelect?.(chosenTheme);
 
-      if (reducedMotion || !canvas) {
-        // Fallback: simple 300ms cross-fade for reduced motion or missing canvas
+      if (reducedMotion || !canvas || !gl || !program) {
+        // Fallback: simple 300ms cross-fade for reduced motion or missing WebGL
+        triggerHeroEntrance();
         if (contentEl) {
           contentEl.style.transition = "opacity 300ms ease-out";
           contentEl.style.opacity = "0";
         }
         setTimeout(() => {
+          scrollLock.unlock();
           closeGate();
           document.getElementById("main-content")?.focus();
         }, 300);
         return;
       }
 
-      // Initialize WebGL2
-      const gl = canvas.getContext("webgl2", {
-        alpha: true,
-        antialias: false,
-        premultipliedAlpha: true,
-        powerPreference: "high-performance",
-      });
+      // 2. Double-rAF ensures style recalculation & repaints occur behind the 100% opaque paper
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+          const width = window.innerWidth;
+          const height = window.innerHeight;
 
-      if (!gl) {
-        // Fallback to fast fade if WebGL2 unavailable
-        if (contentEl) {
-          contentEl.style.transition = "opacity 300ms ease-out";
-          contentEl.style.opacity = "0";
-        }
-        setTimeout(() => {
-          closeGate();
-          document.getElementById("main-content")?.focus();
-        }, 300);
-        return;
-      }
+          canvas.width = Math.floor(width * dpr);
+          canvas.height = Math.floor(height * dpr);
+          canvas.style.display = "block";
+          gl.viewport(0, 0, canvas.width, canvas.height);
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+          const { uResolution, uOrigin, uProgress, uTime } = uniformLocsRef.current;
+          gl.useProgram(program);
+          gl.uniform2f(uResolution, canvas.width, canvas.height);
+          gl.uniform2f(uOrigin, originX * dpr, (height - originY) * dpr);
 
-      canvas.width = Math.floor(width * dpr);
-      canvas.height = Math.floor(height * dpr);
-      canvas.style.display = "block";
+          // Pre-allocated typed arrays for particles (zero per-frame object allocation / GC spikes)
+          const particleCount = 100;
+          const pData = new Float32Array(particleCount * 8); // x, y, vx, vy, size, life, maxLife, isAsh
+          for (let i = 0; i < particleCount; i++) {
+            const idx = i * 8;
+            pData[idx] = originX;
+            pData[idx + 1] = originY;
+            pData[idx + 2] = (Math.random() - 0.5) * 1.6;
+            pData[idx + 3] = -Math.random() * 2.2 - 0.8;
+            pData[idx + 4] = Math.random() > 0.65 ? Math.random() * 4 + 2 : Math.random() * 3 + 1.5;
+            pData[idx + 5] = Math.random() * 0.8; // life
+            pData[idx + 6] = Math.random() * 0.9 + 0.5; // maxLife
+            pData[idx + 7] = Math.random() > 0.65 ? 1 : 0; // isAsh
+          }
 
-      gl.viewport(0, 0, canvas.width, canvas.height);
+          // 2D Overlay canvas for high-perf crisp particles
+          let particleCanvas: HTMLCanvasElement | null = document.createElement("canvas");
+          particleCanvas.width = canvas.width;
+          particleCanvas.height = canvas.height;
+          particleCanvas.style.position = "fixed";
+          particleCanvas.style.inset = "0";
+          particleCanvas.style.width = "100%";
+          particleCanvas.style.height = "100%";
+          particleCanvas.style.pointerEvents = "none";
+          particleCanvas.style.zIndex = "100001";
+          particleCanvas.style.transform = "translateZ(0)";
+          document.body.appendChild(particleCanvas);
+          const pCtx = particleCanvas.getContext("2d", { alpha: true });
 
-      // Compile Shader Program
-      const createShader = (type: number, src: string) => {
-        const s = gl.createShader(type);
-        if (!s) return null;
-        gl.shaderSource(s, src);
-        gl.compileShader(s);
-        return s;
-      };
+          const startTime = performance.now();
+          const burnDurationMs = 2100; // 2.1s organic burn duration
 
-      const vs = createShader(gl.VERTEX_SHADER, VS_SOURCE);
-      const fs = createShader(gl.FRAGMENT_SHADER, FS_SOURCE);
-      if (!vs || !fs) return;
+          let animId = 0;
 
-      const program = gl.createProgram();
-      if (!program) return;
-      gl.attachShader(program, vs);
-      gl.attachShader(program, fs);
-      gl.linkProgram(program);
+          const render = (now: number) => {
+            const elapsed = now - startTime;
+            const linearProgress = Math.min(1.0, elapsed / burnDurationMs);
 
-      gl.useProgram(program);
+            // Smooth ease-in-out cubic curve
+            const progress =
+              linearProgress < 0.5
+                ? 4 * linearProgress * linearProgress * linearProgress
+                : 1 - Math.pow(-2 * linearProgress + 2, 3) / 2;
 
-      // Fullscreen quad
-      const quadBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
-      gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
-        gl.STATIC_DRAW
-      );
-
-      const posLoc = gl.getAttribLocation(program, "position");
-      gl.enableVertexAttribArray(posLoc);
-      gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
-
-      const uResLoc = gl.getUniformLocation(program, "uResolution");
-      const uOriginLoc = gl.getUniformLocation(program, "uOrigin");
-      const uProgressLoc = gl.getUniformLocation(program, "uProgress");
-      const uTimeLoc = gl.getUniformLocation(program, "uTime");
-
-      gl.uniform2f(uResLoc, canvas.width, canvas.height);
-      gl.uniform2f(uOriginLoc, originX * dpr, (height - originY) * dpr);
-
-      // Initialize Particles (embers & ash flakes)
-      const particles: Particle[] = [];
-      const particleCount = 100;
-      for (let i = 0; i < particleCount; i++) {
-        const isAsh = Math.random() > 0.65;
-        particles.push({
-          x: originX,
-          y: originY,
-          vx: (Math.random() - 0.5) * 1.5,
-          vy: -Math.random() * 2.2 - 0.8,
-          size: isAsh ? Math.random() * 4 + 2 : Math.random() * 3 + 1.5,
-          life: Math.random() * 0.8,
-          maxLife: Math.random() * 0.9 + 0.5,
-          color: isAsh
-            ? [0.25, 0.20, 0.16]
-            : [1.0, Math.random() * 0.4 + 0.45, 0.08],
-          isAsh,
-        });
-      }
-
-      // 2D Overlay canvas for high-perf crisp particles
-      let particleCanvas: HTMLCanvasElement | null = document.createElement("canvas");
-      particleCanvas.width = canvas.width;
-      particleCanvas.height = canvas.height;
-      particleCanvas.style.position = "fixed";
-      particleCanvas.style.inset = "0";
-      particleCanvas.style.width = "100%";
-      particleCanvas.style.height = "100%";
-      particleCanvas.style.pointerEvents = "none";
-      particleCanvas.style.zIndex = "100001";
-      document.body.appendChild(particleCanvas);
-      const pCtx = particleCanvas.getContext("2d");
-
-      const startTime = performance.now();
-      const burnDurationMs = 2100; // 2.1s organic burn duration
-
-      let animId = 0;
-
-      const render = (now: number) => {
-        const elapsed = now - startTime;
-        const linearProgress = Math.min(1.0, elapsed / burnDurationMs);
-        
-        // Smooth ease-in-out curve
-        const progress =
-          linearProgress < 0.5
-            ? 4 * linearProgress * linearProgress * linearProgress
-            : 1 - Math.pow(-2 * linearProgress + 2, 3) / 2;
-
-        const maxDist = Math.hypot(
-          Math.max(originX, width - originX),
-          Math.max(originY, height - originY)
-        );
-        const currentRadius = progress * (maxDist + 160);
-
-        // Update DOM content mask so cards & text burn away with the paper
-        if (contentEl) {
-          const maskPx = Math.max(0, currentRadius - 20);
-          contentEl.style.webkitMaskImage = `radial-gradient(circle at ${originX}px ${originY}px, transparent ${maskPx}px, black ${maskPx + 60}px)`;
-          contentEl.style.maskImage = `radial-gradient(circle at ${originX}px ${originY}px, transparent ${maskPx}px, black ${maskPx + 60}px)`;
-        }
-
-        // Draw WebGL Paper Burn
-        gl.useProgram(program);
-        gl.uniform1f(uProgressLoc, progress);
-        gl.uniform1f(uTimeLoc, (now - startTime) * 0.001);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-        // Update & Render Particles
-        if (pCtx && particleCanvas) {
-          pCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
-          pCtx.save();
-          pCtx.scale(dpr, dpr);
-
-          const timeSec = (now - startTime) * 0.001;
-
-          for (let i = 0; i < particles.length; i++) {
-            const p = particles[i];
-            p.life += 0.016;
-
-            if (p.life >= p.maxLife && progress < 0.95) {
-              // Re-spawn along current burn perimeter
-              const angle = Math.random() * Math.PI * 2;
-              const r = currentRadius * (0.92 + Math.random() * 0.12);
-              p.x = originX + Math.cos(angle) * r;
-              p.y = originY + Math.sin(angle) * r;
-              p.vx = (Math.random() - 0.5) * 2.0;
-              p.vy = -Math.random() * 3.0 - 1.0;
-              p.life = 0;
+            // Trigger homepage content pop-up when burn reaches ~60%
+            if (progress >= 0.60 && !heroEntranceTriggeredRef.current) {
+              heroEntranceTriggeredRef.current = true;
+              triggerHeroEntrance();
             }
 
-            // Physics drift
-            p.x += p.vx + Math.sin(timeSec * 4.0 + i) * 0.5;
-            p.y += p.vy;
+            const maxDist = Math.hypot(
+              Math.max(originX, width - originX),
+              Math.max(originY, height - originY)
+            );
+            const currentRadius = progress * (maxDist + 160);
 
-            const alpha = Math.max(0, 1 - p.life / p.maxLife);
-            if (alpha > 0) {
-              pCtx.beginPath();
-              pCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-              if (p.isAsh) {
-                pCtx.fillStyle = `rgba(50, 40, 30, ${alpha * 0.7})`;
-              } else {
-                pCtx.fillStyle = `rgba(255, ${Math.floor(p.color[1] * 255)}, 20, ${alpha * 0.9})`;
-                pCtx.shadowBlur = 8;
-                pCtx.shadowColor = "rgba(255, 140, 20, 0.8)";
+            // Synchronized DOM content mask so cards & text burn away with the paper
+            if (contentEl) {
+              const maskPx = Math.max(0, currentRadius - 20);
+              contentEl.style.webkitMaskImage = `radial-gradient(circle at ${originX}px ${originY}px, transparent ${maskPx}px, black ${maskPx + 60}px)`;
+              contentEl.style.maskImage = `radial-gradient(circle at ${originX}px ${originY}px, transparent ${maskPx}px, black ${maskPx + 60}px)`;
+            }
+
+            // Draw WebGL Paper Burn
+            gl.useProgram(program);
+            gl.uniform1f(uProgress, progress);
+            gl.uniform1f(uTime, (now - startTime) * 0.001);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+            // Update & Render Particles with zero allocation
+            if (pCtx && particleCanvas) {
+              pCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+              pCtx.save();
+              pCtx.scale(dpr, dpr);
+
+              const timeSec = (now - startTime) * 0.001;
+
+              for (let i = 0; i < particleCount; i++) {
+                const idx = i * 8;
+                pData[idx + 5] += 0.016; // life
+
+                if (pData[idx + 5] >= pData[idx + 6] && progress < 0.95) {
+                  // Re-spawn along current burn perimeter
+                  const angle = Math.random() * Math.PI * 2;
+                  const r = currentRadius * (0.92 + Math.random() * 0.12);
+                  pData[idx] = originX + Math.cos(angle) * r;
+                  pData[idx + 1] = originY + Math.sin(angle) * r;
+                  pData[idx + 2] = (Math.random() - 0.5) * 1.8;
+                  pData[idx + 3] = -Math.random() * 2.8 - 1.0;
+                  pData[idx + 5] = 0;
+                }
+
+                // Physics update
+                pData[idx] += pData[idx + 2] + Math.sin(timeSec * 4.0 + i) * 0.4;
+                pData[idx + 1] += pData[idx + 3];
+
+                const alpha = Math.max(0, 1 - pData[idx + 5] / pData[idx + 6]);
+                if (alpha > 0) {
+                  pCtx.beginPath();
+                  pCtx.arc(pData[idx], pData[idx + 1], pData[idx + 4], 0, Math.PI * 2);
+                  if (pData[idx + 7] > 0.5) {
+                    pCtx.fillStyle = `rgba(50, 40, 30, ${alpha * 0.7})`;
+                  } else {
+                    pCtx.fillStyle = `rgba(255, 140, 20, ${alpha * 0.9})`;
+                    pCtx.shadowBlur = 8;
+                    pCtx.shadowColor = "rgba(255, 140, 20, 0.8)";
+                  }
+                  pCtx.fill();
+                }
               }
-              pCtx.fill();
+              pCtx.restore();
             }
-          }
-          pCtx.restore();
-        }
 
-        if (linearProgress < 1.0) {
+            if (linearProgress < 1.0) {
+              animId = requestAnimationFrame(render);
+            } else {
+              // Burn Complete: Cleanup & Unmount
+              cancelAnimationFrame(animId);
+
+              if (particleCanvas && particleCanvas.parentNode) {
+                particleCanvas.parentNode.removeChild(particleCanvas);
+                particleCanvas = null;
+              }
+
+              // Ensure hero entrance is guaranteed
+              triggerHeroEntrance();
+
+              // Release scroll lock and refresh ScrollTrigger
+              scrollLock.unlock();
+              closeGate();
+              document.getElementById("main-content")?.focus();
+            }
+          };
+
           animId = requestAnimationFrame(render);
-        } else {
-          // Burn Complete: Cleanup & Unmount
-          cancelAnimationFrame(animId);
-
-          if (particleCanvas && particleCanvas.parentNode) {
-            particleCanvas.parentNode.removeChild(particleCanvas);
-            particleCanvas = null;
-          }
-
-          gl.deleteBuffer(quadBuffer);
-          gl.deleteShader(vs);
-          gl.deleteShader(fs);
-          gl.deleteProgram(program);
-
-          closeGate();
-          document.getElementById("main-content")?.focus();
-        }
-      };
-
-      animId = requestAnimationFrame(render);
+        });
+      });
     },
-    [closeGate, onSelect, setTheme]
+    [closeGate, onSelect, setTheme, triggerHeroEntrance]
   );
 
   const handleChoose = useCallback(

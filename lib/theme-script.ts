@@ -6,9 +6,11 @@ export const themeInitScript = `(function() {
     var isDevOverride = devTheme === "dark" || devTheme === "light";
     var theme = isDevOverride ? devTheme : "dark";
     var gate = isDevOverride ? "closed" : "pending";
+    var intro = isDevOverride ? "active" : "pending";
 
     document.documentElement.dataset.theme = theme;
     document.documentElement.dataset.gate = gate;
+    document.documentElement.dataset.intro = intro;
     document.documentElement.style.colorScheme = theme;
 
     var meta = document.querySelector('meta[name="theme-color"]');
@@ -18,5 +20,6 @@ export const themeInitScript = `(function() {
   } catch (e) {
     document.documentElement.dataset.theme = "dark";
     document.documentElement.dataset.gate = "pending";
+    document.documentElement.dataset.intro = "pending";
   }
 })();`;

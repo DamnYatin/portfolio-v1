@@ -120,7 +120,7 @@ const PreLoader = dynamic(() => import("../components/PreLoader"), {
 });
 
 export default function Home() {
-  const { setLoaderDone } = useTheme();
+  const { setLoaderDone, heroEntranceReady } = useTheme();
   const [environment, setEnvironment] = useState<MotionEnvironment | null>(null);
   const [preloaderDone, setPreloaderDone] = useState(false);
   const portfolioSectionRef = useRef<HTMLElement>(null);
@@ -132,6 +132,7 @@ export default function Home() {
     motionFailedRef.current = true;
     const root = document.documentElement;
     root.dataset.motionReady = "failed";
+    root.dataset.intro = "active";
     delete root.dataset.burnActive;
 
     try {
@@ -263,7 +264,7 @@ export default function Home() {
 
       <main id="main-content" tabIndex={-1}>
         <HeroSection
-          animate={preloaderDone}
+          animate={heroEntranceReady}
           environment={environment ?? undefined}
           motionEnabled={desktopScrub}
           portfolioSectionRef={portfolioSectionRef}

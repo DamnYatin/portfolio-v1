@@ -13,9 +13,9 @@ import { useFrame, useThree, extend } from "@react-three/fiber";
 import { shaderMaterial, useProgress } from "@react-three/drei";
 import * as THREE from "three";
 import gsap from "gsap";
-import { getLenis } from "../lib/lenisInstance";
 import { loaderControls } from "../lib/loaderControls";
 import { resolveMotionEnvironment } from "../lib/motionEnvironment";
+import { scrollLock } from "../lib/scrollLock";
 
 /* ================================================================
    PreLoader — "Liquid Obsidian" honest-manifest burn loader
@@ -430,11 +430,9 @@ export default function PreLoader({ onComplete }: PreLoaderProps) {
           scroll blocked — no retry needed.) ── */
   useEffect(() => {
     if (isComplete) return;
-    document.documentElement.style.overflow = "hidden";
-    getLenis()?.stop();
+    scrollLock.lock();
     return () => {
-      document.documentElement.style.overflow = "";
-      getLenis()?.start();
+      scrollLock.unlock();
     };
   }, [isComplete]);
 

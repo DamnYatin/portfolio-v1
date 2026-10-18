@@ -24,6 +24,7 @@ import {
 } from "../lib/motionEnvironment";
 import { loaderControls } from "../lib/loaderControls";
 import { MOTION_FAILED_EVENT } from "../lib/motionEvents";
+import { useTheme } from "./theme/ThemeProvider";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
@@ -54,6 +55,9 @@ export default function HeroSection({
   const topCharRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const botCharRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const subContentRef = useRef<HTMLDivElement>(null);
+  const { heroEntranceReady } = useTheme();
+  const shouldAnimate = animate || heroEntranceReady;
+  const introRanRef = useRef(false);
   const [detectedEnvironment, setDetectedEnvironment] =
     useState<MotionEnvironment | null>(null);
   const [stageFailed, setStageFailed] = useState(false);
@@ -256,10 +260,7 @@ export default function HeroSection({
     revertOnUpdate: true,
   });
 
-  /* ── Initial hidden state for entrance animation ──
-     The name lines hide by offset inside their overflow-hidden masks
-     (no opacity): Jonathan waits below its mask, Jesni above its own,
-     so the entrance is a pure opposing mask-reveal. */
+  /* ── Initial hidden state for bottom-up pop-up entrance ── */
   useGSAP(() => {
     try {
       if (!entranceEnabled) {
@@ -268,24 +269,53 @@ export default function HeroSection({
           ...botCharRefs.current,
         ].filter(Boolean);
         gsap.set(allChars, { clearProps: "transform" });
-        gsap.set([".name-part-1", ".name-part-2"], { yPercent: 0 });
+        gsap.set([".name-part-1", ".name-part-2"], { yPercent: 0, opacity: 1, scale: 1 });
         gsap.set(".hero-name-mask", { overflow: "visible" });
-        gsap.set([".hero-tagline", ".hero-sub", ".hero-buttons"], { opacity: 1, y: 0 });
+        gsap.set(
+          [
+            ".hero-tagline",
+            ".hero-sub",
+            ".hero-buttons",
+            ".hero-buttons .btn",
+            ".hero-3d-layer",
+            ".hero-laptop-poster",
+          ],
+          { opacity: 1, y: 0, scale: 1 }
+        );
         return;
       }
 
-      gsap.set(".name-part-1", { yPercent: 100 });
-      gsap.set(".name-part-2", { yPercent: -100 });
-      gsap.set(
-        [".hero-tagline", ".hero-sub", ".hero-buttons"],
-        { opacity: 0, y: -80 }
-      );
+      // Pre-hidden state before burn reaches 60%
+      if (!introRanRef.current) {
+        gsap.set([".name-part-1", ".name-part-2"], {
+          yPercent: 110,
+          opacity: 0,
+          scale: 0.96,
+        });
+        gsap.set(
+          [
+            ".hero-tagline",
+            ".hero-sub",
+            ".hero-buttons .btn",
+            ".hero-3d-layer",
+            ".hero-laptop-poster",
+          ],
+          { opacity: 0, y: 70, scale: 0.96 }
+        );
+      }
     } catch {
-      gsap.set([".name-part-1", ".name-part-2"], { yPercent: 0 });
+      gsap.set([".name-part-1", ".name-part-2"], { yPercent: 0, opacity: 1, scale: 1 });
       gsap.set(".hero-name-mask", { overflow: "visible" });
       gsap.set(
-        [".hero-tagline", ".hero-sub", ".hero-buttons"],
-        { opacity: 1, y: 0 }
+        [
+          ".hero-tagline",
+          ".hero-sub",
+          ".hero-buttons",
+          ".hero-buttons .btn",
+          ".hero-3d-layer",
+          ".hero-laptop-poster",
+        ],
+        { opacity: 1, y: 0, scale: 1 }
       );
       window.dispatchEvent(new CustomEvent(MOTION_FAILED_EVENT));
     }
@@ -295,61 +325,157 @@ export default function HeroSection({
     revertOnUpdate: true,
   });
 
-  /* ── Entrance animation (fires after preloader) ── */
+  /* ── Homepage entrance: bottom-up pop-up when burn hits ~60% ── */
   useGSAP(() => {
-    if (!animate) return;
+    if (!shouldAnimate || !entranceEnabled) return;
+    if (introRanRef.current) return;
+    introRanRef.current = true;
 
-    if (!entranceEnabled) return;
     let mm: ReturnType<typeof gsap.matchMedia> | null = null;
 
     try {
       mm = gsap.matchMedia();
       mm.add("(prefers-reduced-motion: no-preference)", () => {
-        /* Opposing mask-reveal: Jonathan rises UP into view while Jesni
-           drops DOWN, simultaneously. Once the lines have landed, the
-           masks release (overflow: visible) so the magnetic char
-           repulsion and the scroll-out fly-apart are never clipped. */
-        gsap.to(".name-part-1", {
-          yPercent: 0,
-          ease: "power3.out",
-          duration: 1.35,
-        });
-        gsap.to(".name-part-2", {
-          yPercent: 0,
-          ease: "power3.out",
-          duration: 1.35,
+        const animTargets = [
+          ".name-part-1",
+          ".name-part-2",
+          ".hero-tagline",
+          ".hero-sub",
+          ".hero-buttons .btn",
+          ".hero-3d-layer",
+          ".hero-laptop-poster",
+        ];
+
+        // Add will-change GPU hints before animation starts
+        gsap.set(animTargets, { willChange: "transform, opacity" });
+
+        const tl = gsap.timeline({
           onComplete: () => {
             gsap.set(".hero-name-mask", { overflow: "visible" });
+            gsap.set(animTargets, { clearProps: "willChange" });
+            ScrollTrigger.refresh();
           },
         });
 
-        /* Supporting copy follows the name in */
-        gsap.to([".hero-tagline", ".hero-sub", ".hero-buttons"], {
-          y: 0,
-          opacity: 1,
-          ease: "power3.out",
-          duration: 1.1,
-          stagger: 0.08,
-          delay: 0.25,
-        });
+        // 1. "Jonathan" rises from behind baseline
+        tl.to(
+          ".name-part-1",
+          {
+            yPercent: 0,
+            opacity: 1,
+            scale: 1,
+            duration: 1.05,
+            ease: "back.out(1.4)",
+          },
+          0
+        );
+
+        // 2. "Jesni" rises from behind baseline
+        tl.to(
+          ".name-part-2",
+          {
+            yPercent: 0,
+            opacity: 1,
+            scale: 1,
+            duration: 1.05,
+            ease: "back.out(1.4)",
+          },
+          0.09
+        );
+
+        // 3. Intro paragraph
+        tl.to(
+          ".hero-tagline",
+          {
+            y: 0,
+            opacity: 1,
+            scale: 1,
+            duration: 1.0,
+            ease: "back.out(1.4)",
+          },
+          0.18
+        );
+
+        // 4. Secondary paragraph
+        tl.to(
+          ".hero-sub",
+          {
+            y: 0,
+            opacity: 1,
+            scale: 1,
+            duration: 1.0,
+            ease: "back.out(1.4)",
+          },
+          0.27
+        );
+
+        // 5. Action buttons (Explore featured work / Connect / Resume)
+        tl.to(
+          ".hero-buttons .btn",
+          {
+            y: 0,
+            opacity: 1,
+            scale: 1,
+            duration: 1.1,
+            ease: "back.out(1.7)",
+            stagger: 0.08,
+          },
+          0.36
+        );
+
+        // 6. 3D Model / Laptop rises and settles with a soft ease
+        tl.to(
+          [".hero-3d-layer", ".hero-laptop-poster"],
+          {
+            y: 0,
+            opacity: 1,
+            scale: 1,
+            duration: 1.2,
+            ease: "power3.out",
+          },
+          0.30
+        );
       });
 
       mm.add("(prefers-reduced-motion: reduce)", () => {
-        /* Instant reveal — no transforms */
-        gsap.set([".name-part-1", ".name-part-2"], { yPercent: 0 });
-        gsap.set(".hero-name-mask", { overflow: "visible" });
-        gsap.set(
-          [".hero-tagline", ".hero-sub", ".hero-buttons"],
-          { opacity: 1, y: 0 }
+        gsap.to(
+          [
+            ".name-part-1",
+            ".name-part-2",
+            ".hero-tagline",
+            ".hero-sub",
+            ".hero-buttons .btn",
+            ".hero-3d-layer",
+            ".hero-laptop-poster",
+          ],
+          {
+            opacity: 1,
+            y: 0,
+            yPercent: 0,
+            scale: 1,
+            duration: 0.35,
+            stagger: 0.04,
+            onComplete: () => {
+              gsap.set(".hero-name-mask", { overflow: "visible" });
+              ScrollTrigger.refresh();
+            },
+          }
         );
       });
     } catch {
       mm?.revert();
-      gsap.set([".name-part-1", ".name-part-2"], { yPercent: 0 });
+      gsap.set([".name-part-1", ".name-part-2"], { yPercent: 0, opacity: 1, scale: 1 });
       gsap.set(".hero-name-mask", { overflow: "visible" });
       gsap.set(
-        [".hero-tagline", ".hero-sub", ".hero-buttons"],
-        { opacity: 1, y: 0 }
+        [
+          ".hero-tagline",
+          ".hero-sub",
+          ".hero-buttons",
+          ".hero-buttons .btn",
+          ".hero-3d-layer",
+          ".hero-laptop-poster",
+        ],
+        { opacity: 1, y: 0, scale: 1 }
       );
       window.dispatchEvent(new CustomEvent(MOTION_FAILED_EVENT));
     }
@@ -357,9 +483,33 @@ export default function HeroSection({
     return () => mm?.revert();
   }, {
     scope: runwayRef,
-    dependencies: [animate, entranceEnabled],
-    revertOnUpdate: true,
+    dependencies: [shouldAnimate, entranceEnabled],
+    revertOnUpdate: false,
   });
+
+  // StrictMode & unmount safe fallback: ensure hero never stays hidden
+  useEffect(() => {
+    const safetyTimer = setTimeout(() => {
+      if (!introRanRef.current) {
+        introRanRef.current = true;
+        gsap.set([".name-part-1", ".name-part-2"], { yPercent: 0, opacity: 1, scale: 1 });
+        gsap.set(".hero-name-mask", { overflow: "visible" });
+        gsap.set(
+          [
+            ".hero-tagline",
+            ".hero-sub",
+            ".hero-buttons",
+            ".hero-buttons .btn",
+            ".hero-3d-layer",
+            ".hero-laptop-poster",
+          ],
+          { opacity: 1, y: 0, scale: 1 }
+        );
+        ScrollTrigger.refresh();
+      }
+    }, 4500);
+    return () => clearTimeout(safetyTimer);
+  }, []);
 
   /* ── Scroll-out parallax (name flies apart, sub-content fades) ── */
   useGSAP(() => {

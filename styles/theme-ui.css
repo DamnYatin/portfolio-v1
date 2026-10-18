@@ -375,3 +375,22 @@
     transition: none !important;
   }
 }
+
+/* Pre-hidden state for homepage hero elements so there is zero flash
+   of final-state content behind the burning paper before the 60% reveal entrance. */
+html[data-intro="pending"] .name-part-1,
+html[data-intro="pending"] .name-part-2 {
+  opacity: 0 !important;
+  transform: translateY(110%) scale(0.96) !important;
+}
+
+html[data-intro="pending"] .hero-tagline,
+html[data-intro="pending"] .hero-sub,
+html[data-intro="pending"] .hero-buttons,
+html[data-intro="pending"] .hero-buttons .btn,
+html[data-intro="pending"] .hero-3d-layer,
+html[data-intro="pending"] .hero-laptop-poster {
+  opacity: 0 !important;
+  transform: translateY(70px) scale(0.96) !important;
+  pointer-events: none !important;
+}
