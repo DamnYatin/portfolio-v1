@@ -383,15 +383,16 @@ select:focus-visible,
   transform: scale(0.97);
 }
 
-/* Primary button - white fill */
+/* Primary button */
 .btn-primary {
-  background: var(--ink-0);
-  color: var(--surface-0);
+  background: var(--btn-primary-bg, var(--ink-0));
+  color: var(--btn-primary-text, var(--surface-0));
+  border: 1px solid var(--border-subtle);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:hover {
-    background: var(--ink-1);
+    background: var(--btn-primary-hover-bg, var(--ink-1));
     transform: scale(0.98);
   }
 }
@@ -484,13 +485,15 @@ select:focus-visible,
   background: none;
   -webkit-background-clip: unset;
   background-clip: unset;
-  -webkit-text-fill-color: #FAF5EE;
-  transition: -webkit-text-fill-color var(--t-fast);
+  -webkit-text-fill-color: var(--text-hero, var(--ink-0));
+  color: var(--text-hero, var(--ink-0));
+  transition: -webkit-text-fill-color var(--t-fast), color var(--t-fast);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .hero-char:hover {
-    -webkit-text-fill-color: #C9A852;
+    -webkit-text-fill-color: var(--accent);
+    color: var(--accent);
   }
 }
 
@@ -1842,7 +1845,7 @@ select:focus-visible,
   font-family: var(--font-jetbrains), monospace;
   font-size: 11px;
   letter-spacing: 0.04em;
-  color: #5A6670;
+  color: var(--ink-3);
 }
 
 .footer-clock {
@@ -2628,7 +2631,7 @@ canvas.glass-image-canvas {
 .cs-caption-metric {
   font-size: 10px;
   letter-spacing: 0.06em;
-  color: #5C667A;
+  color: var(--ink-3);
 }
 
 /* Copy column */
@@ -3297,6 +3300,13 @@ canvas.glass-image-canvas {
   background:
     radial-gradient(ellipse 46% 44% at 12% 86%, rgba(var(--accent-rgb), 0.09), transparent 66%),
     radial-gradient(ellipse 40% 40% at 22% 30%, rgba(143, 168, 196, 0.05), transparent 72%);
+}
+
+html[data-theme="light"] .hero-3d-layer::before {
+  opacity: 0.5;
+  background:
+    radial-gradient(ellipse 46% 44% at 12% 86%, rgba(var(--accent-rgb), 0.05), transparent 66%),
+    radial-gradient(ellipse 40% 40% at 22% 30%, rgba(70, 120, 170, 0.03), transparent 72%);
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -16,7 +16,6 @@ import gsap from "gsap";
 import { getLenis } from "../lib/lenisInstance";
 import { loaderControls } from "../lib/loaderControls";
 import { resolveMotionEnvironment } from "../lib/motionEnvironment";
-import { useTheme } from "./theme/ThemeProvider";
 
 /* ================================================================
    PreLoader — "Liquid Obsidian" honest-manifest burn loader
@@ -348,7 +347,6 @@ interface PreLoaderProps {
 }
 
 export default function PreLoader({ onComplete }: PreLoaderProps) {
-  const { hasChosen } = useTheme();
   const [lines, setLines] = useState<string[]>(["> INIT RENDER PIPELINE ..."]);
   const [floorPassed, setFloorPassed] = useState(false);
   const [readyPrinted, setReadyPrinted] = useState(false);
@@ -459,7 +457,7 @@ export default function PreLoader({ onComplete }: PreLoaderProps) {
   /* Mobile policy, WebGL loss/unavailability, and reduced motion retain the
      loader's visual identity as a short static surface without another context. */
   useEffect(() => {
-    if (!staticFallback || isComplete || !hasChosen) return;
+    if (!staticFallback || isComplete) return;
     loaderControls.setActive(false);
     document.getElementById("preloader-mask")?.remove();
 
@@ -543,7 +541,7 @@ export default function PreLoader({ onComplete }: PreLoaderProps) {
     return () => {
       fade.kill();
     };
-  }, [environment.reducedMotion, isComplete, staticFallback, mobileTerminalBoot, hasChosen]);
+  }, [environment.reducedMotion, isComplete, staticFallback, mobileTerminalBoot]);
 
   /* ── Honest manifest capture: CHAIN onto the global manager's
         onProgress (fired per itemEnd, i.e. per completed asset).
@@ -625,14 +623,12 @@ export default function PreLoader({ onComplete }: PreLoaderProps) {
   useEffect(() => {
     if (staticFallback || isComplete) return;
     const floor = setTimeout(() => setFloorPassed(true), FLOOR_MS);
-    const ceiling = setTimeout(() => {
-      if (hasChosen) startBurn();
-    }, FAILSAFE_MS);
+    const ceiling = setTimeout(() => startBurn(), FAILSAFE_MS);
     return () => {
       clearTimeout(floor);
       clearTimeout(ceiling);
     };
-  }, [isComplete, startBurn, staticFallback, hasChosen]);
+  }, [isComplete, startBurn, staticFallback]);
 
   /* ── Print queue drain: one line per tick keeps the terminal
         legible even when 50 assets resolve in 50ms. Once drained AND
@@ -659,8 +655,8 @@ export default function PreLoader({ onComplete }: PreLoaderProps) {
   /* ── The logic gate: A is folded into C (READY only prints once
         assetsDone && queue drained), so burn ⇐ B && C. ── */
   useEffect(() => {
-    if (!staticFallback && floorPassed && readyPrinted && hasChosen) startBurn();
-  }, [floorPassed, readyPrinted, startBurn, staticFallback, hasChosen]);
+    if (!staticFallback && floorPassed && readyPrinted) startBurn();
+  }, [floorPassed, readyPrinted, startBurn, staticFallback]);
 
   /* Kill in-flight tweens if we unmount mid-burn */
   useEffect(() => {

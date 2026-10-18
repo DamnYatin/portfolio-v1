@@ -550,11 +550,11 @@ export default function HeroSection({
 
               <div ref={subContentRef} className="hero-sub-content">
                 <h2 className="hero-tagline">
-                  I engineer <TerminalHighlight delay={1.1} color="#C9A852" animate={animate}>self-modifying models</TerminalHighlight>, <TerminalHighlight delay={1.35} color="#C9A852" animate={animate}>computer vision pipelines</TerminalHighlight>, and <TerminalHighlight delay={1.6} color="#8FA8C4" animate={animate}>multi-agent infrastructure</TerminalHighlight> <em>from training through deployment</em>.
+                  I engineer <TerminalHighlight delay={1.1} color="var(--highlight-gold)" animate={animate}>self-modifying models</TerminalHighlight>, <TerminalHighlight delay={1.35} color="var(--highlight-gold)" animate={animate}>computer vision pipelines</TerminalHighlight>, and <TerminalHighlight delay={1.6} color="var(--highlight-blue)" animate={animate}>multi-agent infrastructure</TerminalHighlight> <em>from training through deployment</em>.
                 </h2>
 
                 <p className="hero-sub">
-                  Final-year CS at IIIT Pune, Class of 2027. Open to <CircuitUnderline delay={1.85} color="#C9A852" animate={animate}>junior AI/ML roles</CircuitUnderline> and <TerminalHighlight delay={2.1} color="#8FA8C4" animate={animate}>internships</TerminalHighlight>.
+                  Final-year CS at IIIT Pune, Class of 2027. Open to <CircuitUnderline delay={1.85} color="var(--highlight-gold)" animate={animate}>junior AI/ML roles</CircuitUnderline> and <TerminalHighlight delay={2.1} color="var(--highlight-blue)" animate={animate}>internships</TerminalHighlight>.
                 </p>
 
                 <div className="hero-buttons">

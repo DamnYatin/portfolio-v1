@@ -33,6 +33,7 @@ import {
   refreshScrollTargets,
 } from "../lib/scrollTarget";
 import { MOTION_FAILED_EVENT } from "../lib/motionEvents";
+import { useTheme } from "../components/theme/ThemeProvider";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -119,6 +120,7 @@ const PreLoader = dynamic(() => import("../components/PreLoader"), {
 });
 
 export default function Home() {
+  const { setLoaderDone } = useTheme();
   const [environment, setEnvironment] = useState<MotionEnvironment | null>(null);
   const [preloaderDone, setPreloaderDone] = useState(false);
   const portfolioSectionRef = useRef<HTMLElement>(null);
@@ -249,7 +251,12 @@ export default function Home() {
         aria-hidden="true"
         style={{ position: "fixed", inset: 0, zIndex: 9999, background: "var(--surface-0)" }}
       />
-      <PreLoader onComplete={() => setPreloaderDone(true)} />
+      <PreLoader
+        onComplete={() => {
+          setPreloaderDone(true);
+          setLoaderDone(true);
+        }}
+      />
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>

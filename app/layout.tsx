@@ -10,7 +10,6 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { themeInitScript } from "../lib/theme-script";
 import { ThemeProvider } from "../components/theme/ThemeProvider";
 import { ThemeGate } from "../components/theme/ThemeGate";
-import { ThemeTopBar } from "../components/theme/ThemeTopBar";
 import "../styles/tokens.css";
 import "../styles/theme-ui.css";
 import "./globals.css";
@@ -114,7 +113,6 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <ThemeGate />
-          <ThemeTopBar />
           <Script id="scroll-restoration" strategy="beforeInteractive">
             {`history.scrollRestoration = "manual";
 if (!location.hash) window.scrollTo(0, 0);`}

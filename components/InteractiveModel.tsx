@@ -710,20 +710,37 @@ export default function InteractiveModel({
             ScrollTrigger stops firing onUpdate → no invalidate → no frames. */}
 
         {renderLaptop && (
-          <>
-            <ambientLight intensity={degraded ? 2.2 : 1.5} />
-            <directionalLight position={[8, 12, 6]} intensity={2.2} />
-            <directionalLight position={[-8, 6, -6]} intensity={0.6} />
-            <pointLight position={[0, 4, 3]} intensity={1.0} />
-          </>
+          typeof document !== "undefined" && document.documentElement.dataset.theme === "light" ? (
+            <>
+              <ambientLight intensity={degraded ? 1.5 : 1.0} color="#F5EADB" />
+              <directionalLight position={[8, 12, 6]} intensity={1.3} color="#FFF2DF" />
+              <directionalLight position={[-8, 6, -6]} intensity={0.4} color="#E8DAC7" />
+              <pointLight position={[0, 4, 3]} intensity={0.6} color="#FFE6C7" />
+            </>
+          ) : (
+            <>
+              <ambientLight intensity={degraded ? 2.2 : 1.5} />
+              <directionalLight position={[8, 12, 6]} intensity={2.2} />
+              <directionalLight position={[-8, 6, -6]} intensity={0.6} />
+              <pointLight position={[0, 4, 3]} intensity={1.0} />
+            </>
+          )
         )}
 
         {renderLaptop && !degraded && (
-          <Environment resolution={quality.environmentResolution} background={false}>
-            <Lightformer intensity={0.8} position={[3, 3, 4]} scale={[6, 6, 1]} color="#eef2f4" />
-            <Lightformer intensity={0.4} position={[-4, 2, -3]} scale={[5, 5, 1]} color="#9fb4d8" />
-            <Lightformer form="ring" intensity={0.3} position={[0, 5, 2]} scale={[3, 3, 1]} color="#ffffff" />
-          </Environment>
+          typeof document !== "undefined" && document.documentElement.dataset.theme === "light" ? (
+            <Environment resolution={quality.environmentResolution} background={false}>
+              <Lightformer intensity={0.45} position={[3, 3, 4]} scale={[6, 6, 1]} color="#F7EDE1" />
+              <Lightformer intensity={0.25} position={[-4, 2, -3]} scale={[5, 5, 1]} color="#EBDCCE" />
+              <Lightformer form="ring" intensity={0.15} position={[0, 5, 2]} scale={[3, 3, 1]} color="#FFF3E5" />
+            </Environment>
+          ) : (
+            <Environment resolution={quality.environmentResolution} background={false}>
+              <Lightformer intensity={0.8} position={[3, 3, 4]} scale={[6, 6, 1]} color="#eef2f4" />
+              <Lightformer intensity={0.4} position={[-4, 2, -3]} scale={[5, 5, 1]} color="#9fb4d8" />
+              <Lightformer form="ring" intensity={0.3} position={[0, 5, 2]} scale={[3, 3, 1]} color="#ffffff" />
+            </Environment>
+          )
         )}
 
         {renderLaptop && (
