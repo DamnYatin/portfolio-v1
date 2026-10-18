@@ -1,0 +1,739 @@
+/* eslint-disable react-hooks/immutability */
+"use client";
+
+import { useRef, useMemo, useEffect, useState, useCallback, Suspense, Component } from "react";
+import type { ReactNode } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import {
+  useGLTF,
+  useTexture,
+  Environment,
+  Lightformer,
+  PerformanceMonitor,
+} from "@react-three/drei";
+import * as THREE from "three";
+import gsap from "gsap";
+import ScrollTrigger from "gsap/ScrollTrigger";
+import { useGSAP } from "@gsap/react";
+import { BurnPlane } from "./BurnTransition";
+import { ObsidianPlane } from "./PreLoader";
+import { GlProbe } from "./MemProbe";
+import { loaderControls } from "../lib/loaderControls";
+import { resolveAdaptiveQuality } from "../lib/motionEnvironment";
+
+gsap.registerPlugin(ScrollTrigger, useGSAP);
+
+// Preload assets outside component render loop.
+// Self-hosted (three's bundled decoder) — a gstatic outage/block must not
+// take down the hero; the GLB would otherwise dead-end into the preloader's
+// 9s failsafe.
+const DRACO_DECODER_PATH = "/draco/";
+useGLTF.preload("/assets/hardware_laptop.glb", DRACO_DECODER_PATH);
+/* bg.jpg is CPU-only (drawn into the boot canvas — never GPU-sampled), so it
+   loads via ImageLoader instead of useTexture: same DefaultLoadingManager
+   registration (the PreLoader manifest gate DEPENDS on that — see
+   PreLoader.tsx header), no ~27MB dead GPU upload. Module scope so the fetch
+   + manifest registration start at exactly the same time as before. */
+let bgImage: HTMLImageElement | null = null;
+const bgImagePromise =
+  typeof window === "undefined"
+    ? null
+    : new THREE.ImageLoader().loadAsync("/assets/textures/bg.jpg").then((img) => { bgImage = img; return img; }).catch(() => null);
+useTexture.preload("/assets/textures/Mac Keyboard.jpg");
+
+/* ── Boot-screen canvas dimensions ── */
+const BOOT_W = 1536;
+const BOOT_H = 987;
+
+/* ── Phase thresholds (hero scroll progress, 0→1) ── */
+const BOOT_P1 = 0.27;
+const BOOT_P2 = 0.50;
+// End of the header fade-in — completes before the camera zoom starts.
+const BOOT_P3 = 0.62;
+
+const COVER_OVERSHOOT = 0.90;
+
+// Length (in vh of scroll) of the velocity-matched, pixel-locked dissolve
+function cappedDpr(): number {
+  return resolveAdaptiveQuality().dpr;
+}
+// at the end of the hero trigger — see the timeline header comment below.
+const MATCH_WINDOW_VH = 10;
+
+/* ─────────────────────────────────────────────────────────────────────
+   BOOT-SCREEN DRAWING — pure function, called from useFrame.
+   ───────────────────────────────────────────────────────────────────── */
+function drawBootScreen(
+  ctx: CanvasRenderingContext2D,
+  progress: number,
+  clockTime: number,
+  bgImage: HTMLImageElement | ImageBitmap | null,
+  prefersReduced: boolean,
+): void {
+  const W = BOOT_W;
+  const H = BOOT_H;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = "#0D0B09";
+  ctx.fillRect(0, 0, W, H);
+
+  if (progress <= 0) return;
+
+  // ── Phase 1: spinning-dots (BOOT_P1–BOOT_P2) ──────────────────────
+  if (!prefersReduced && progress >= BOOT_P1 && progress < BOOT_P2) {
+    const dp = (progress - BOOT_P1) / (BOOT_P2 - BOOT_P1);
+    const fadeIn  = Math.min(1, dp / 0.15);
+    const fadeOut = 1 - Math.min(1, Math.max(0, (dp - 0.85) / 0.15));
+    const alpha   = fadeIn * fadeOut;
+
+    if (alpha > 0) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      const cx   = W / 2;
+      const cy   = H / 2;
+      const ring = Math.min(W, H) * 0.065;
+      const dr   = Math.min(W, H) * 0.012;
+      const N    = 8;
+      const angle = clockTime * 2.5;
+
+      for (let i = 0; i < N; i++) {
+        const t  = i / N;
+        const da = 0.15 + 0.85 * Math.pow(t, 1.5);
+        const a  = t * Math.PI * 2 + angle;
+
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * ring, cy + Math.sin(a) * ring, dr, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${da})`;
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+    return;
+  }
+
+  // ── Phase 2: header bitmap fade-in (BOOT_P2–BOOT_P3) ──────────────
+  if (progress >= BOOT_P2 && bgImage) {
+    const raw = (progress - BOOT_P2) / (BOOT_P3 - BOOT_P2);
+    const t   = Math.max(0, Math.min(1, raw));
+    const alpha = t * t * (3 - 2 * t);
+
+    if (alpha <= 0) return;
+
+    const imgW = "naturalWidth" in bgImage
+      ? (bgImage as HTMLImageElement).naturalWidth
+      : (bgImage as ImageBitmap).width;
+    const imgH = "naturalHeight" in bgImage
+      ? (bgImage as HTMLImageElement).naturalHeight
+      : (bgImage as ImageBitmap).height;
+
+    if (imgW > 0 && imgH > 0) {
+      const scale = Math.max(W / imgW, H / imgH) * COVER_OVERSHOOT;
+      const dx    = (W - imgW * scale) / 2;
+      const dy    = (H - imgH * scale) / 2;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(bgImage as CanvasImageSource, dx, dy, imgW * scale, imgH * scale);
+      ctx.restore();
+    }
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   LAPTOP SCENE
+   ───────────────────────────────────────────────────────────────── */
+function LaptopScene({
+  canvasWrapperDOMRef,
+  portfolioSectionRef,
+  lowPerf = false,
+  parallaxScale = 1,
+  onReady,
+}: {
+  canvasWrapperDOMRef: React.RefObject<HTMLDivElement | null>;
+  portfolioSectionRef?: React.RefObject<HTMLElement | null>;
+  lowPerf?: boolean;
+  parallaxScale?: number;
+  onReady: () => void;
+}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { nodes, materials } = useGLTF("/assets/hardware_laptop.glb", DRACO_DECODER_PATH) as any;
+  const keyboardTex = useTexture("/assets/textures/Mac Keyboard.jpg");
+
+  const globalContainerRef  = useRef<THREE.Group>(null);
+  const lidHingeGroupRef    = useRef<THREE.Group>(null);
+  const parallaxGroupRef    = useRef<THREE.Group>(null);
+  // Persistent (unfaded) pointer-parallax accumulator. The applied group
+  // rotation is this × fade, so fade can force it to exactly 0 at cover time.
+  const parallaxCur         = useRef({ x: 0, y: 0 });
+  // Manual pointer tracker (normalized -1..1, R3F convention: x right+, y up+).
+  // The canvas is pointer-events:none (see InteractiveModel wrapper) so
+  // state.pointer never updates from real input — this window listener
+  // replaces it for the parallax below.
+  const pointerRef          = useRef({ x: 0, y: 0 });
+  const { camera, size, invalidate } = useThree();
+  /* Live mirror for coverZ: ScrollTrigger's invalidateOnRefresh re-evaluates
+     function-based values on every refresh (which resize triggers), so the
+     scrub setup below must NOT depend on `size` — each PerformanceMonitor
+     DPR flip changed its identity and re-ran the setup, stacking scrub
+     ScrollTriggers (measured 45 on #hero) until the tab OOM'd. */
+  const sizeRef = useRef(size);
+  // eslint-disable-next-line react-hooks/refs -- Intentional: cross-root ScrollTrigger.refresh() can read coverZ before effects flush.
+  sizeRef.current = size;
+
+  const bootProgressRef     = useRef(0);
+  const lastBootProgressRef = useRef(-1);
+  // Timestamp of the last scroll event — kept only as a short jitter grace now;
+  // the demand loop is really held open by the scrub tween's own activity below.
+  const scrollSettleRef     = useRef(0);
+  // The main scrub timeline's ScrollTrigger, captured so the boot useFrame can
+  // keep rendering until its scrub tween has actually finished easing (a fixed
+  // timeout under-shoots the ease tail → the lid-open stalls just short).
+  const scrollTriggerRef    = useRef<ScrollTrigger | null>(null);
+
+  const prefersReduced = useMemo(
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    []
+  );
+
+  /* ── Boot-screen canvas + CanvasTexture ── */
+  const boot = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width  = BOOT_W;
+    canvas.height = BOOT_H;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#0D0B09";
+    ctx.fillRect(0, 0, BOOT_W, BOOT_H);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.flipY       = false;
+    tex.colorSpace  = THREE.SRGBColorSpace;
+    // No mips: −33% GPU memory and no per-upload mip-chain regen (the dots
+    // phase uploads per frame) — the screen is viewed ≥ native scale in every
+    // detail-bearing phase, so mip filtering buys nothing.
+    tex.generateMipmaps = false;
+    tex.minFilter       = THREE.LinearFilter;
+    return { canvas, ctx, tex };
+  }, []);
+
+  useEffect(() => {
+    return () => { boot.tex.dispose(); };
+  }, [boot]);
+
+  /* bgImage loads async off the module-scope ImageLoader (see top of file).
+     If it resolves AFTER the useFrame's drawKey change-detection has already
+     latched onto a constant key (e.g. playhead parked mid-phase-2 with no new
+     scroll), the header would stay undrawn until the next key change. Force
+     one redraw once the image is actually available. */
+  useEffect(() => {
+    let cancelled = false;
+    bgImagePromise?.then(() => {
+      if (cancelled) return;
+      lastBootProgressRef.current = -1;
+      invalidate();
+    });
+    return () => { cancelled = true; };
+  }, [invalidate]);
+
+  /* ── Texture mapping & material calibrations ── */
+  useMemo(() => {
+    if (keyboardTex) {
+      keyboardTex.flipY      = false;
+      keyboardTex.colorSpace = THREE.SRGBColorSpace;
+    }
+
+    if (materials.Image) {
+      materials.Image.map              = null;
+      materials.Image.color?.set?.("#000000");
+      materials.Image.emissiveMap      = boot.tex;
+      materials.Image.emissive         = new THREE.Color("#ffffff");
+      materials.Image.emissiveIntensity = 1.0;
+      materials.Image.toneMapped       = false;
+      materials.Image.metalness        = 0;
+      materials.Image.roughness        = 1;
+      materials.Image.needsUpdate      = true;
+    }
+    if (materials.Screen) {
+      materials.Screen.roughness = 0.35;
+      materials.Screen.metalness = 0.1;
+    }
+    if (materials.Keys) {
+      materials.Keys.map       = keyboardTex;
+      materials.Keys.roughness = 0.5;
+      materials.Keys.metalness = 0.1;
+      materials.Keys.needsUpdate = true;
+    }
+    if (materials.Laptop) {
+      materials.Laptop.roughness = 0.4;
+      materials.Laptop.metalness = 0.1;
+      materials.Laptop.color.set("#d1d5db");
+    }
+    if (materials.Keyboard) {
+      materials.Keyboard.roughness = 0.5;
+      materials.Keyboard.metalness = 0.1;
+    }
+  }, [keyboardTex, materials, boot.tex]);
+
+  useGSAP(() => {
+    if (!globalContainerRef.current || !lidHingeGroupRef.current) return;
+
+    lidHingeGroupRef.current.rotation.x = 1.7285;
+
+    /* Hero scrub timeline, keyed to #hero scroll progress 0→1:
+         0     – 0.267  entry — lid opens, laptop swings/slides into frame
+         0.27  – 0.62   boot — spinner, then header bitmap fades in on the
+                         virtual screen (see drawBootScreen phases)
+         0.62  – 0.9667 dolly — camera zooms/pans to the cover-framed screen
+         0.9667– 1.0    matched window — camera drifts the remaining
+                         MATCH_WINDOW_VH so the on-screen capture translates
+                         up at exactly 1:1 with scroll, pixel-locked to the
+                         real Projects header rising beneath it; the opacity
+                         dissolve spans this same window, crossfading two
+                         identical, identically-moving images. */
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: "#hero",
+        start: "top top",
+        end: "bottom top",
+        // Lenis is the single smoothing layer; a numeric scrub double-smooths
+
+        // only the pre-swap side and breaks the velocity match under fast
+        // scroll during the matched window above.
+        scrub: true,
+        invalidateOnRefresh: true,
+        onUpdate: (self) => {
+          bootProgressRef.current = self.progress;
+          // Short grace so a frame is guaranteed right after the last update;
+          // the real settle window is the scrub tween's isActive() (see useFrame).
+          scrollSettleRef.current = performance.now();
+          invalidate();
+        },
+      },
+    });
+    // Capture the ScrollTrigger so the boot useFrame can keep the demand loop
+    // alive for the full duration of the scrub catch-up ease.
+    scrollTriggerRef.current = tl.scrollTrigger ?? null;
+
+    tl.fromTo(
+      lidHingeGroupRef.current.rotation,
+      { x: 1.7285 },
+      { x: 0, duration: 0.267, ease: "power2.inOut" },
+      0
+    );
+    tl.fromTo(
+      globalContainerRef.current.position,
+      { x: 1.7 },
+      { x: 0, duration: 0.267, ease: "power2.inOut" },
+      0
+    );
+    tl.fromTo(
+      globalContainerRef.current.rotation,
+      { x: 0.18, y: -0.35, z: 0.05 },
+      { x: 0.1577, y: 0, z: 0, duration: 0.267, ease: "power2.inOut" },
+      0
+    );
+    const FACE_CY      = 0.6879;
+    const FACE_FRONT_Z = -0.8689;
+    const FACE_HALF_W  = 1.4766;
+    const FACE_HALF_H  = 0.9485;
+    const coverZ = () => {
+      const t      = Math.tan(THREE.MathUtils.degToRad(45 / 2));
+      const aspect = sizeRef.current.width / Math.max(1, sizeRef.current.height);
+      const d = Math.min(FACE_HALF_H / t, FACE_HALF_W / (aspect * t)) * COVER_OVERSHOOT;
+      return FACE_FRONT_Z + d;
+    };
+    /* World-units of ONE viewport-height at the screen plane when the camera
+       sits at coverZ — converts scroll vh into camera-Y drift so the on-screen
+       capture can translate up at exactly 1:1 with the page during the
+       matched handoff window. Function-based (invalidateOnRefresh re-evaluates
+       on resize), like coverZ. */
+    const vhWorld = () => {
+      const dist = coverZ() - FACE_FRONT_Z;
+      return 2 * dist * Math.tan(THREE.MathUtils.degToRad(45 / 2));
+    };
+    /* z: the dolly — settles fully before the matched window (zero radial flow
+       at the swap). */
+    tl.fromTo(
+      camera.position,
+      { z: 6.5 },
+      { z: coverZ, duration: 0.3467, ease: "power2.inOut" },
+      0.62
+    );
+    /* y: rises on power1.in (t²) — zero velocity at onset, and its END velocity
+       (2× average ≈ 0.016 world/vh at 16:9) lands within ~7% of the matched
+       window's 1:1 rate (vhWorld/100 ≈ 0.015), instead of the old power2.inOut
+       ending at ZERO and stepping instantly to 1:1 (the felt "catch"). The
+       mid-zoom framing arc changes slightly — camera rides low longer, then
+       sweeps up into the lock; intentional, reads as settling into frame.
+       Revert path: merge y back into the z tween above. */
+    tl.fromTo(
+      camera.position,
+      { y: 0 },
+      { y: () => FACE_CY + (MATCH_WINDOW_VH / 100) * vhWorld(), duration: 0.3467, ease: "power1.in" },
+      0.62
+    );
+    tl.fromTo(
+      camera.rotation,
+      { x: 0, y: 0, z: 0 },
+      { x: 0, y: 0, z: 0, duration: 0.3467, ease: "power2.inOut" },
+      0.62
+    );
+    /* Matched segment: content translates up MATCH_WINDOW_VH over
+       MATCH_WINDOW_VH of scroll, 1:1 with the page. Linear (ease: "none") so
+       the camera's velocity — and thus the on-screen capture's velocity —
+       exactly matches the page's scroll velocity for the whole window. */
+    tl.to(
+      camera.position,
+      { y: FACE_CY, duration: 0.0333, ease: "none" },
+      0.9667
+    );
+
+    const layerEl     = canvasWrapperDOMRef.current?.closest<HTMLElement>(".hero-3d-layer");
+    const projectsEl  = portfolioSectionRef?.current;
+    if (layerEl && projectsEl && canvasWrapperDOMRef.current) {
+      /* Raise the fixed canvas above the incoming stack before any overlap
+         (projects enters the viewport at progress ≈ 0.667). Scrub .set()s
+         revert automatically when the playhead crosses back — this replaces
+         fadeTl's four imperative onEnter/onLeave zIndex callbacks. */
+      tl.set(layerEl, { zIndex: 30 }, 0.62);
+      /* The real header must sit beneath the screen for the whole matched
+         window (0.9667–1.0), not just the dissolve tail — it's what the
+         screen capture is pixel-locked against as both translate up. */
+      tl.set(projectsEl, { opacity: 1, pointerEvents: "auto" }, 0.9667);
+      /* The dissolve: spans the matched window exactly, crossfading two
+         identical, identically-moving images — the screen capture and the
+         real projects header are pixel-aligned and co-moving throughout. */
+      tl.to(layerEl, { opacity: 0, ease: "none", duration: 0.0333 }, 0.9667);
+      /* Keep the shared Canvas mounted after the handoff. The laptop group is
+         parked below, while the same renderer remains available for the
+         About → Contact burn without allocating a second context. */
+    }
+    tl.set(globalContainerRef.current, { visible: false }, 1.0);
+
+    onReady();
+
+  }, {
+    /* revertOnUpdate kills the previous timelines/ScrollTriggers before any
+       re-run — @gsap/react's default (revert on unmount only) leaks them in
+       this never-unmounting component. */
+    dependencies: [camera, canvasWrapperDOMRef, portfolioSectionRef, invalidate, onReady],
+    revertOnUpdate: true,
+  });
+
+  /* ── Boot-screen rendering ──────────────────────────────────────────
+     With frameloop="demand" this only runs when a frame was requested.
+     Self-perpetuates (via invalidate) in two cases where time drives the
+     animation rather than scroll:
+       1. inDots — spinner reads state.clock.elapsedTime every frame
+       2. scrub tail — GSAP scrub:0.6 eases for ~600ms after last scroll
+     Outside those windows it's a no-op and no new frame is scheduled.  ── */
+  useFrame((state) => {
+    const progress = bootProgressRef.current;
+    const inDots   = !prefersReduced && progress >= BOOT_P1 && progress < BOOT_P2;
+
+    // Change-detection key: the flat-dark phase (< BOOT_P1) renders identically
+    // regardless of exact progress, so collapse it to a single value. Otherwise
+    // we'd redraw + re-upload the 1536×987 CanvasTexture (~6 MB texImage2D) every
+    // frame across the first 40% of the hero for ZERO visual change — the main
+    // cause of the iGPU scroll stutter. (Dots + fade genuinely change per frame.)
+    // Quantize the change-detection key per phase so the 1536×987 texture
+    // only re-uploads when pixels actually change:
+    //   < P1        — flat dark, one key (0): zero redraws
+    //   P1–P2 dots  — raw progress (inDots forces per-frame redraws anyway)
+    //   P2–P3 fade  — 24 discrete alpha buckets: ≤24 uploads for the whole fade
+    //   ≥ P3        — header fully faded in, one key: ZERO redraws during the
+    //                 entire camera zoom (0.62→0.98), the window that must
+    //                 stay butter-smooth.
+    const drawKey =
+      progress < BOOT_P1 ? 0
+      : progress < BOOT_P2 ? progress
+      : progress < BOOT_P3 ? 1 + Math.round(((progress - BOOT_P2) / (BOOT_P3 - BOOT_P2)) * 24)
+      : 1000;
+
+    if (drawKey !== lastBootProgressRef.current || inDots) {
+      lastBootProgressRef.current = drawKey;
+      drawBootScreen(
+        boot.ctx,
+        progress,
+        state.clock.elapsedTime,
+        bgImage,
+        prefersReduced,
+      );
+      boot.tex.needsUpdate = true;
+    }
+
+    // Keep scheduling frames while a time- or scrub-driven animation is still
+    // running. The scrub demand window is tied to the scrub tween's actual
+    // activity (not a fixed timeout, which under-shoots the ease tail and stalls
+    // the lid-open just short of complete); a small grace covers update jitter.
+    const scrubTween = scrollTriggerRef.current?.getTween?.();
+    const inScrubTail =
+      (scrubTween ? scrubTween.isActive() : false) ||
+      performance.now() - scrollSettleRef.current < 120;
+    if (inDots || inScrubTail) {
+      invalidate();
+    }
+  });
+
+  /* ── Pointer parallax ──────────────────────────────────────────────
+     Attaches a pointermove listener on the canvas wrapper DOM element and
+     calls invalidate() so demand mode fires a frame on each move. The
+     actual lerp still happens in useFrame (which runs because invalidate
+     was just called). On lowPerf / reduced-motion the listener is never
+     attached, saving per-event work entirely. ── */
+  useFrame(() => {
+    const g = parallaxGroupRef.current;
+    if (!g || prefersReduced || lowPerf || parallaxScale <= 0) return;
+    const fade = 1 - Math.max(0, Math.min(1, (bootProgressRef.current - 0.37) / 0.13));
+    // Lerp the UNFADED pointer target in a persistent accumulator, then apply
+    // fade to the resulting rotation. Fading the applied value (not the target)
+    // forces the tilt to exactly 0 the instant fade hits 0 at bootProgress 0.37
+    // — so the cover shot lands dead-center regardless of where the mouse was,
+    // instead of a residual lerp still decaying into the framing.
+    const targetX = pointerRef.current.y * 0.10 * parallaxScale;
+    const targetY = pointerRef.current.x * 0.16 * parallaxScale;
+    const c = parallaxCur.current;
+    const dx = targetX - c.x;
+    const dy = targetY - c.y;
+    c.x += dx * 0.06;
+    c.y += dy * 0.06;
+    g.rotation.x = c.x * fade;
+    g.rotation.y = c.y * fade;
+    // Self-perpetuate the demand loop until the lerp has settled, so the
+    // parallax finishes easing after the pointer stops instead of freezing
+    // mid-glide (frameloop="demand" renders no frame unless we ask for one).
+    if (Math.abs(dx) > 1e-4 || Math.abs(dy) > 1e-4) invalidate();
+  });
+
+  useEffect(() => {
+    if (prefersReduced || lowPerf || parallaxScale <= 0) return;
+    // Canvas + wrapper are pointer-events:none (see InteractiveModel), so the
+    // listener lives on window instead of the wrapper DOM element.
+    // Invalidate on every move (no throttle): the parallax useFrame self-limits
+    // its work and self-perpetuates its own settle, and the hero's real cost is
+    // the boot-texture upload, not pointermove. Throttling here starved the lerp
+    // between ticks and left the tilt feeling choppy/stuck. Parallax is
+    // gated off on the lowPerf/iGPU path anyway, so this only runs on dGPU.
+    const onMove = (e: PointerEvent) => {
+      pointerRef.current.x = (e.clientX / window.innerWidth) * 2 - 1;
+      pointerRef.current.y = -((e.clientY / window.innerHeight) * 2 - 1);
+      invalidate();
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onMove);
+  }, [prefersReduced, lowPerf, parallaxScale, invalidate]);
+
+  return (
+    <group ref={parallaxGroupRef}>
+      <group
+        ref={globalContainerRef}
+        position={[1.7, 0, 0]}
+        rotation={[0.18, -0.35, 0.05]}
+      >
+        <group scale={[10, 10, 10]} position={[0, -0.65, 0]}>
+          <primitive object={nodes.Base_Chassis} />
+          <group ref={lidHingeGroupRef} position={[0, 0.008614, -0.10311]}>
+            <primitive object={nodes.Lid_Screen} position={[0, -0.008614, 0.10311]} />
+          </group>
+        </group>
+      </group>
+    </group>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   WEBGL FALLBACK
+   ───────────────────────────────────────────────────────────────── */
+class WebGLBoundary extends Component<
+  { children: ReactNode; onFail?: () => void },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch() {
+    // Boundary renders null on failure, which would otherwise strand the
+    // GSAP reveal timeline that lives inside the Canvas subtree — nothing
+    // left to ever flip #projects visible. Reveal it directly via DOM.
+    this.props.onFail?.();
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
+export interface InteractiveModelProps {
+  portfolioSectionRef?: React.RefObject<HTMLElement | null>;
+  renderLaptop?: boolean;
+  onFail?: () => void;
+}
+
+export default function InteractiveModel({
+  portfolioSectionRef,
+  renderLaptop = true,
+  onFail,
+}: InteractiveModelProps) {
+  const canvasWrapperDOMRef = useRef<HTMLDivElement>(null);
+  const [quality] = useState(() => resolveAdaptiveQuality());
+  const [dpr, setDpr] = useState(quality.dpr);
+  const [degraded, setDegraded] = useState(
+    () => quality.shaderDetailScale < 0.7,
+  );
+  const degradedRef = useRef(degraded);
+  useEffect(() => {
+    degradedRef.current = degraded;
+  }, [degraded]);
+
+  // GL context creation signal + fallback-reveal guards. The scrub timeline
+  // that normally reveals #projects lives inside <Canvas>; if WebGL throws
+  // (WebGLBoundary) or context creation just never resolves, that timeline
+  // never exists and everything below the hero stays permanently hidden.
+  const createdRef = useRef(false);
+  const revealedRef = useRef(false);
+  const contextCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const contextLostRef = useRef<((event: Event) => void) | null>(null);
+
+  const sceneReadyRef = useRef(false);
+  const revealFallback = useCallback(() => {
+    if (revealedRef.current) return; // idempotent — boundary + timeout can both fire
+    revealedRef.current = true;
+    loaderControls.fail();
+    const layerEl = canvasWrapperDOMRef.current?.closest(".hero-3d-layer") as HTMLElement | null;
+    if (layerEl) layerEl.style.opacity = "0";
+    const projectsEl = portfolioSectionRef?.current;
+    if (projectsEl) {
+      projectsEl.style.opacity = "1";
+      projectsEl.style.pointerEvents = "auto";
+    }
+    onFail?.();
+  }, [onFail, portfolioSectionRef]);
+
+  const markSceneReady = useCallback(() => {
+    sceneReadyRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    // Cover the case where the context never fires onCreated at all (no
+    // thrown error for WebGLBoundary to catch, just a silent stall).
+    const timeoutId = window.setTimeout(() => {
+      if (
+        !createdRef.current ||
+        (renderLaptop && !sceneReadyRef.current)
+      ) {
+        revealFallback();
+      }
+    }, 10000);
+    return () => window.clearTimeout(timeoutId);
+  }, [renderLaptop, revealFallback]);
+
+  useEffect(() => () => {
+    const canvas = contextCanvasRef.current;
+    const handler = contextLostRef.current;
+    if (canvas && handler) canvas.removeEventListener("webglcontextlost", handler);
+    contextCanvasRef.current = null;
+    contextLostRef.current = null;
+  }, []);
+
+  return (
+    <div
+      ref={canvasWrapperDOMRef}
+      style={{
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 0,
+      }}
+    >
+      <WebGLBoundary onFail={revealFallback}>
+      <Canvas
+        camera={{ position: [0, 0, 6.5], fov: 45 }}
+        frameloop="demand"
+        dpr={dpr}
+        gl={{
+          antialias: quality.antialias,
+          alpha: true,
+          powerPreference: "high-performance",
+        }}
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "block",
+          pointerEvents: "none",
+        }}
+        onCreated={({ gl }) => {
+          createdRef.current = true;
+          gl.setClearAlpha(0);
+          if (!renderLaptop) sceneReadyRef.current = true;
+          loaderControls.markStageReady();
+          const previousCanvas = contextCanvasRef.current;
+          const previousHandler = contextLostRef.current;
+          if (previousCanvas && previousHandler) {
+            previousCanvas.removeEventListener("webglcontextlost", previousHandler);
+          }
+          const canvas = gl.domElement;
+          const handleContextLoss = (event: Event) => {
+            event.preventDefault();
+            revealFallback();
+          };
+          canvas.addEventListener("webglcontextlost", handleContextLoss, false);
+          contextCanvasRef.current = canvas;
+          contextLostRef.current = handleContextLoss;
+        }}
+      >
+        {renderLaptop && (
+          <PerformanceMonitor
+            flipflops={3}
+            onIncline={() => {
+              if (!degradedRef.current) setDpr(cappedDpr());
+            }}
+            onDecline={() => {
+              setDpr(Math.max(0.75, cappedDpr() * 0.78));
+              setDegraded(true);
+            }}
+          />
+        )}
+
+        {/* temporary OOM-investigation probe — inert without ?memprobe */}
+        <GlProbe name="visual-stage" />
+
+        {/* FrameloopGate removed: frameloop="demand" already renders zero
+            frames when nobody calls invalidate(). When hero is offscreen the
+            ScrollTrigger stops firing onUpdate → no invalidate → no frames. */}
+
+        {renderLaptop && (
+          <>
+            <ambientLight intensity={degraded ? 2.2 : 1.5} />
+            <directionalLight position={[8, 12, 6]} intensity={2.2} />
+            <directionalLight position={[-8, 6, -6]} intensity={0.6} />
+            <pointLight position={[0, 4, 3]} intensity={1.0} />
+          </>
+        )}
+
+        {renderLaptop && !degraded && (
+          <Environment resolution={quality.environmentResolution} background={false}>
+            <Lightformer intensity={0.8} position={[3, 3, 4]} scale={[6, 6, 1]} color="#eef2f4" />
+            <Lightformer intensity={0.4} position={[-4, 2, -3]} scale={[5, 5, 1]} color="#9fb4d8" />
+            <Lightformer form="ring" intensity={0.3} position={[0, 5, 2]} scale={[3, 3, 1]} color="#ffffff" />
+          </Environment>
+        )}
+
+        {renderLaptop && (
+          <Suspense fallback={null}>
+            <LaptopScene
+              canvasWrapperDOMRef={canvasWrapperDOMRef}
+              portfolioSectionRef={portfolioSectionRef}
+              lowPerf={degraded}
+              parallaxScale={degraded ? 0 : quality.parallaxScale}
+              onReady={markSceneReady}
+            />
+          </Suspense>
+        )}
+        <ObsidianPlane />
+        <BurnPlane />
+      </Canvas>
+      </WebGLBoundary>
+    </div>
+  );
+}

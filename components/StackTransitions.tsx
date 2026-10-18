@@ -1,0 +1,410 @@
+"use client";
+
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
+import ScrollTrigger from "gsap/ScrollTrigger";
+import { burnControls } from "../lib/burnControls";
+import { IMMERSIVE_SCROLL_MEDIA_QUERY } from "../lib/mediaQueries";
+import { MOTION_FAILED_EVENT } from "../lib/motionEvents";
+
+gsap.registerPlugin(useGSAP, ScrollTrigger);
+
+/* Expose for runtime/e2e verification only (e.g. asserting boundary
+   ScrollTrigger start/end windows in tests/e2e/portfolio.spec.ts) — gsap's
+   ESM build doesn't self-attach to window the way its UMD/CDN build does. */
+if (typeof window !== "undefined") {
+  (window as unknown as { ScrollTrigger?: typeof ScrollTrigger }).ScrollTrigger =
+    ScrollTrigger;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   StackTransitions — "String-Tune" boundary choreography
+
+   Every element marked [data-stack] becomes a sheet in a deck.
+   At each generic boundary the outgoing section is held by its own
+   internal CSS sticky (no GSAP pin — see the "Hold strategy" note
+   inside the loop) while the incoming sheet, pulled up by a CSS
+   overlap margin, physically slides over it and a scrub-tied
+   timeline:
+
+     · scales the outgoing sheet back and nudges it upward
+     · fades in its obsidian veil (depth cue)
+     · un-clips the incoming sheet from a rounded, inset "card"
+       into a full-bleed surface as it reaches the top
+
+   Two boundaries override the generic recipe:
+     · 0 (Projects → Building) adds the CRT-collapse overlay
+     · 3 (About → Contact) is the WebGL burn — no pin at all;
+       see the dedicated block inside the loop
+
+   scrub: 1 keeps everything bound to scroll — scrolling up
+   rewinds the transition frame-perfectly.
+   ───────────────────────────────────────────────────────────── */
+
+interface BoundaryConfig {
+  /** End scale of the outgoing sheet */
+  scale: number;
+  /** End yPercent of the outgoing sheet (negative = pushed up) */
+  y: number;
+  /** Peak opacity of the outgoing sheet's veil */
+  veil: number;
+  /** Side inset (%) of the incoming sheet's clip at entry */
+  inset: number;
+  /** Top corner radius (px) of the incoming sheet at entry */
+  radius: number;
+}
+
+/* Index i = transition from stack section i to i+1.
+   (About → Contact has no entry: boundary 3 is the WebGL burn and
+   never reads this config.) */
+const BOUNDARIES: BoundaryConfig[] = [
+  { scale: 0.94, y: -4, veil: 0.32, inset: 3, radius: 44 }, /* Projects → Building  (sheet) */
+  { scale: 0.97, y: -14, veil: 0.22, inset: 0, radius: 36 }, /* Building → Skills    (push)  */
+  { scale: 0.92, y: -2, veil: 0.40, inset: 4, radius: 52 }, /* Skills   → About     (deep)  */
+];
+
+interface CrtSequenceValues {
+  voidIn: gsap.TweenVars;
+  voidOut: gsap.TweenVars;
+  bladeFrom: gsap.TweenVars;
+  bladeIn: gsap.TweenVars;
+  bladeCollapseFrom: gsap.TweenVars;
+  bladeCollapseTo: gsap.TweenVars;
+  bladePinch: gsap.TweenVars;
+  bladeOut: gsap.TweenVars;
+}
+
+function buildCrtSequence(
+  timeline: gsap.core.Timeline,
+  {
+    voidEl,
+    blade,
+    values,
+  }: {
+    voidEl: HTMLElement | null;
+    blade: HTMLElement | null;
+    values: CrtSequenceValues;
+  },
+) {
+  if (voidEl) {
+    timeline.fromTo(voidEl, { opacity: 0 }, values.voidIn, 0);
+    timeline.to(voidEl, values.voidOut, 0.74);
+  }
+
+  if (blade) {
+    timeline.fromTo(blade, values.bladeFrom, values.bladeIn, 0.04);
+    timeline.fromTo(
+      blade,
+      values.bladeCollapseFrom,
+      values.bladeCollapseTo,
+      0.06,
+    );
+    timeline.to(blade, values.bladePinch, 0.6);
+    timeline.to(blade, values.bladeOut, 0.9);
+  }
+}
+
+export default function StackTransitions() {
+  useGSAP(() => {
+    const sections = gsap.utils.toArray<HTMLElement>("[data-stack]");
+    if (sections.length < 2) return;
+
+    const mm = gsap.matchMedia();
+
+    /* Desktop + full motion only — on mobile and reduced-motion the
+       sections flow natively with no pinning */
+    try {
+      mm.add(IMMERSIVE_SCROLL_MEDIA_QUERY, () => {
+      /* Overlay nodes we inject (e.g. the CRT bezel-iris) — torn down on revert */
+      const createdEls: HTMLElement[] = [];
+      const outroBlock =
+        sections[0]?.querySelector<HTMLElement>(".sd-outro .sd-cta");
+      if (!outroBlock) {
+        throw new Error("CRT boundary targets are missing");
+      }
+      sections.forEach((section, i) => {
+        const next = sections[i + 1];
+        if (!next) return;
+
+        /* ═══════════════════════════════════════════════════════════════
+           Boundary 3 · About → Contact — BURN AWAY (sticky, NO pin)
+
+           Contact is held dead-still at top:0 with position:sticky, NOT a
+           ScrollTrigger pin. The Contact section lives in a 200vh runway
+           (.contact-runway) with its content sticky (.contact-sticky) —
+           the same robust pattern AboutSection uses, and the one the
+           Lenis integration is explicitly built to support.
+
+           Why no pin: a ScrollTrigger pin that *engages* while Lenis
+           momentum carries the scroll across its start point — right at
+           the bottom of the page — locks the main thread in a refresh
+           loop and hard-freezes the tab. This happened with BOTH
+           pinSpacing modes. Sticky is pure CSS: nothing toggles, nothing
+           resizes, nothing can feed back.
+
+           This trigger only READS scroll (scrub, no pin): it scrubs the
+           burn 0 → 1 across the runway's 100vh of sticky travel, fires
+           the headline at the midpoint, and toggles the overlay's alpha.
+
+           Overlap geometry (globals.css, desktop + full-motion only):
+           .about-runway grows to 350vh (words finish at 150vh) and
+           .contact-runway is pulled up by -200vh, so for the WHOLE burn
+           window BOTH stickies sit overlapped dead-still at top:0 —
+           About (z6, opaque sticky) above, Contact (z5) hidden beneath.
+           The swap happens in place: unburned shader pixels are
+           TRANSPARENT (the real About DOM shows through — no shroud
+           pop), and a clip-path wipe on .about-sticky rides exactly
+           behind the ember front's centerline (enters ~0.23, tops out
+           ~0.80), removing About just as the fire chars it to reveal
+           Contact through the burn holes. clip-path also clips
+           hit-testing, so the spent About never blocks Contact's links.
+           ═══════════════════════════════════════════════════════════════ */
+        if (i === 3) {
+          const aboutSticky = section.querySelector<HTMLElement>(".about-sticky");
+          const burnProxy = { value: 0 };
+          const tl = gsap.timeline({
+            scrollTrigger: {
+              trigger: next,
+              start: "top top",
+              end: "bottom bottom",
+              scrub: true,
+              onToggle: (self) => {
+                burnControls.setActive(self.isActive);
+                document.documentElement.dataset.burnActive = String(self.isActive);
+              },
+            },
+          });
+
+          // Drive the burn amount + force a demand-render every tick.
+          tl.to(
+            burnProxy,
+            {
+              value: 1,
+              ease: "none",
+              duration: 1,
+              onUpdate: () => {
+                burnControls.setProgress(burnProxy.value);
+                burnControls.invalidate();
+              },
+            },
+            0
+          );
+
+          // Wipe the real About DOM bottom-up, riding exactly behind the
+          // shader's front centerline: with field = mix(noise, uv.y, 0.72)
+          // and p = mix(-0.15, 1.12, progress), the front enters the
+          // bottom at progress ≈ 0.23 and exits the top at ≈ 0.80. The
+          // ember band + char trail straddle the straight clip line, so
+          // its raggedness is hidden inside the glow.
+          if (aboutSticky) {
+            tl.fromTo(
+              aboutSticky,
+              { clipPath: "inset(0% 0% 0% 0%)" },
+              { clipPath: "inset(0% 0% 100% 0%)", ease: "none", duration: 0.57 },
+              0.23
+            );
+          }
+
+          // Pointer handoff — a transparent box still hit-tests, so the
+          // About wrapper (z6, overlapping Contact for the whole burn and
+          // parked over it at page bottom) would be a glass wall over
+          // Contact's links forever. The instant the fire clears the
+          // button region (~0.45) the wrapper stops intercepting; the
+          // zero-duration set reverts automatically on scroll-back.
+          tl.set(section, { pointerEvents: "none" }, 0.45);
+
+          // Roll the contact headline in as the burn crosses its
+          // midpoint; direction-aware so it re-arms on scroll-up.
+          tl.call(
+            () => {
+              const forward = tl.scrollTrigger ? tl.scrollTrigger.direction === 1 : true;
+              burnControls.fireHeadline(forward);
+            },
+            undefined,
+            0.5
+          );
+
+          return; // skip all generic slide/scale/clip choreography
+        }
+
+        const cfg = BOUNDARIES[Math.min(i, BOUNDARIES.length - 1)];
+        const veil = section.querySelector<HTMLElement>(":scope > .stack-veil");
+
+        /* ── Hold strategy: pin-free sticky + overlap ─────────────────────
+           Every boundary now holds its outgoing sheet with the section's own
+           internal CSS sticky (.cs-viewport for Projects, .sp-sticky for
+           Building/Skills) and overlaps the incoming sheet with a CSS
+           negative margin (.stack-section--building / --skills / --about),
+           mirroring the About → Contact boundary (i=3) which has always
+           worked this way. We transform the STUCK INNER, never the flow box,
+           so nothing leaves flow → no ~100vh reflow → no CLS. (The old
+           pin:true/pinSpacing:false on boundaries 0–2 was the dominant CLS
+           source: it pulled the section out of flow with no spacer.)
+
+           Boundary 0 (Projects → Building) is special only in that Projects'
+           .cs-viewport has already released by the boundary — but the CRT
+           collapse overlay masks the swap, so transforming the released inner
+           is harmless and the overlap margin still lands Building correctly. */
+        const stuckInner =
+          section.querySelector<HTMLElement>(".cs-viewport, .sp-sticky") ??
+          section;
+        /* NB: deliberately NOT matching .about-sticky here. The About→Contact
+           burn (i===3) animates .about-sticky's clipPath to wipe About away;
+           if the Skills→About incoming clip also targeted .about-sticky, the
+           two scrub timelines would fight over the same property and a fast
+           scroll could leave About un-wiped, covering Contact. About has no
+           .cs-viewport/.sp-sticky, so it falls back to `next` (the wrapper) —
+           a different element from the burn target, as it was pre-refactor. */
+        const incomingInner =
+          next.querySelector<HTMLElement>(".cs-viewport, .sp-sticky") ?? next;
+
+        const tl = gsap.timeline({
+          scrollTrigger:
+            i === 0
+              ? {
+                  trigger: outroBlock,
+                  start: "bottom center",
+                  endTrigger: next,
+                  end: "top top",
+                  scrub: 1,
+                }
+              : {
+                  trigger: next,
+                  start: "top bottom",
+                  end: "top top",
+                  scrub: true,
+                },
+        });
+
+        tl.to(
+          stuckInner,
+          {
+            scale: cfg.scale,
+            yPercent: cfg.y,
+            transformOrigin: "center top",
+            ease: "none",
+          },
+          0
+        );
+
+        /* ── Boundary 0 · Projects → Building — CRT collapse (no shader) ──
+           A fixed, full-viewport layer is the whole trick: scaling it about
+           its own centre IS the viewport centre, so the blade forms dead
+           centre regardless of how the tall, pinned Projects section sits.
+
+             · a dark void establishes over the outgoing deck
+             · a champagne field SQUASHES scaleY 1 → 0.005 while its
+               brightness is driven sky-high, concentrating into a blinding
+               gold blade across the centre of the void
+             · the blade PINCHES scaleX 1 → 0 inward from both sides and
+               winks out as the void clears, revealing the Building bento
+
+           Fully scrub-tied — scrolling up rewinds the whole power cycle. */
+        if (i === 0) {
+          const fx = document.createElement("div");
+          fx.className = "crt-fx";
+          fx.setAttribute("aria-hidden", "true");
+          fx.innerHTML =
+            '<div class="crt-fx__void"></div>' +
+            '<div class="crt-fx__blade"></div>';
+          document.body.appendChild(fx);
+          createdEls.push(fx);
+
+          const voidEl = fx.querySelector<HTMLElement>(".crt-fx__void");
+          const blade = fx.querySelector<HTMLElement>(".crt-fx__blade");
+
+          buildCrtSequence(tl, {
+            voidEl,
+            blade,
+            values: {
+              voidIn: { opacity: 1, ease: "power2.out", duration: 0.22 },
+              voidOut: { opacity: 0, ease: "power2.in", duration: 0.2 },
+              bladeFrom: { autoAlpha: 0 },
+              bladeIn: {
+                autoAlpha: 0.95,
+                ease: "power1.out",
+                duration: 0.12,
+              },
+              bladeCollapseFrom: {
+                scaleY: 1,
+                scaleX: 1,
+                transformOrigin: "center center",
+                filter: "brightness(1)",
+              },
+              bladeCollapseTo: {
+                scaleY: 0.005,
+                filter: "brightness(3.4)",
+                ease: "power3.in",
+                duration: 0.5,
+              },
+              bladePinch: {
+                scaleX: 0,
+                ease: "power2.in",
+                duration: 0.3,
+              },
+              bladeOut: {
+                autoAlpha: 0,
+                ease: "none",
+                duration: 0.05,
+              },
+            },
+          });
+        } else if (veil) {
+          /* Depth drift: as a sheet is buried it darkens through the warm
+             obsidian ramp (surface-1 #161310 toward the deeper surface-0
+             #0D0B09), reading as physical depth/distance. Data-only; rides
+             the same scrub. */
+          tl.fromTo(
+            veil,
+            { backgroundColor: "#161310", opacity: 0 },
+            { backgroundColor: "#0D0B09", opacity: cfg.veil, ease: "none" },
+            0
+          );
+        }
+
+        tl.fromTo(
+          incomingInner,
+          {
+            clipPath: `inset(0% ${cfg.inset}% 0% ${cfg.inset}% round ${cfg.radius}px ${cfg.radius}px 0px 0px)`,
+          },
+          {
+            clipPath: "inset(0% 0% 0% 0% round 0px 0px 0px 0px)",
+            ease: "none",
+          },
+          0
+        );
+      });
+
+      return () => {
+        createdEls.forEach((el) => el.remove());
+        delete document.documentElement.dataset.burnActive;
+        // Park the burn overlay (transparent + idle) when the desktop
+        // context reverts — e.g. resize below 768px or unmount.
+        burnControls.setActive(false);
+        burnControls.setProgress(0);
+        burnControls.invalidate();
+        sections.forEach((section) => {
+          const inner =
+            section.querySelector<HTMLElement>(
+              ".cs-viewport, .sp-sticky, .about-sticky",
+            ) ?? section;
+          gsap.set([section, inner], {
+            clearProps: "transform,clipPath,pointerEvents",
+          });
+        });
+      };
+    });
+
+    } catch {
+      burnControls.setProgress(0);
+      burnControls.setActive(false);
+      burnControls.invalidate();
+      delete document.documentElement.dataset.burnActive;
+      window.dispatchEvent(new CustomEvent(MOTION_FAILED_EVENT));
+    }
+
+    return () => mm.revert();
+  });
+
+  return null;
+}

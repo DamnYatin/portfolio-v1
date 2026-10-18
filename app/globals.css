@@ -1,0 +1,4328 @@
+/* ============================================================
+   LENIS - prevent native scroll from clashing
+   ============================================================ */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* ============================================================
+   GLOBALS - Premium OLED Dark Portfolio
+   Background: #0D0B09 | Body: Plus Jakarta Sans
+   Code/Labels: JetBrains Mono | Accent: Antique Gold #C9A852
+   ============================================================ */
+
+/* ---------- Reset & Base ---------- */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Always reserve the scrollbar track so the PreLoader's
+     overflow:hidden scroll lock can't cause a layout shift
+     when it engages/releases. */
+  scrollbar-gutter: stable;
+}
+
+body {
+  background-color: #0D0B09;
+  color: #EDE5D8;
+  font-family: var(--font-jakarta), system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* ---------- Keyboard focus ring ----------
+   Champagne accent ring, shown only to keyboard / assistive-tech users
+   (:focus-visible) so mouse clicks never paint an outline. Targets
+   interactive elements so decorative focusable nodes stay clean. */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 4px var(--accent-glow);
+}
+
+/* Belt-and-braces: kill the legacy outline for pointer users whose click
+   still triggers :focus on browsers without :focus-visible support. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ---------- Film-Grain Noise Overlay ----------
+   Fixed, pointer-events-none - adds physical paper texture
+   to kill the "digital flatness" of a flat OLED black. */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  opacity: 0.032;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+@media (max-width: 768px),
+(prefers-reduced-motion: reduce) {
+  .grain-overlay {
+    display: none;
+  }
+}
+
+/* ---------- CSS Custom Properties ---------- */
+:root {
+  /* Surface palette - Warm Obsidian hierarchy */
+  --surface-0: #0D0B09;
+  /* deepest warm obsidian base */
+  --surface-1: #161310;
+  /* card floor */
+  --surface-2: #1F1B18;
+  /* elevated card */
+  --surface-3: #2B2520;
+  /* hover state */
+  --surface-4: #383028;
+  /* active state / focused element edges */
+
+  /* Ink palette - warm cream on warm obsidian */
+  --ink-0: #FAF5EE;
+  /* warm cream white - display headings only */
+  --ink-1: #EDE5D8;
+  /* primary body text */
+  --ink-2: #C4B8A8;
+  /* secondary text */
+  --ink-3: #8A7D6E;
+  /* muted - warm grey, WCAG AA on --surface-1 */
+  --ink-4: #4E4440;
+  /* hairline structures - recedes into the warm ground */
+
+  /* Borders - gold-tinted glass-plate system */
+  --border-hairline: rgba(232, 201, 122, 0.04);
+  --border-subtle:   rgba(232, 201, 122, 0.08);
+  --border-default:  var(--surface-3);
+  --border-hover:    rgba(201, 168, 82, 0.25);
+
+  /* Inner edge highlights for Double-Bezel architecture */
+  --edge-top:  rgba(201, 168, 82, 0.15);
+  --edge-glow: rgba(201, 168, 82, 0.05);
+
+  /* Accent - Antique Gold. Used ONLY for hover micro-states, arrows & serif italics */
+  --accent:        #C9A852;
+  --accent-rgb:    201, 168, 82;
+  --accent-bright: #E8C97A;
+  --accent-deep:   #A07C2E;
+  --accent-muted:  #7A5E22;
+  --accent-glow:   rgba(201, 168, 82, 0.20);
+  --accent-dim:    rgba(201, 168, 82, 0.09);
+  /* Secondary cool accent - dusty steel blue for terminal chrome */
+  --accent-cool: #8FA8C4;
+
+  /* Physical shadows - tinted to the warm obsidian ground */
+  --shadow-card:  0 1px 2px rgba(13, 11, 9, 0.8), 0 8px 32px rgba(13, 11, 9, 0.6), 0 24px 64px rgba(13, 11, 9, 0.4);
+  --shadow-hover: 0 1px 2px rgba(13, 11, 9, 0.9), 0 12px 40px rgba(13, 11, 9, 0.7), 0 32px 80px rgba(13, 11, 9, 0.5);
+
+  /* Typography scale */
+  --text-label: 11px;
+  --text-small: 13px;
+  --text-body: 15px;
+  --text-lead: 17px;
+
+  /* Layout */
+  --container-max: 1120px;
+  --section-padding: 160px 0;
+  --section-padding-mobile: 96px 0;
+
+  /* Custom easing curves - Emil Kowalski / high-end physics */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-expo: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Transition shorthands using the custom easings */
+  --t-fast: 160ms var(--ease-out-expo);
+  --t-mid: 280ms var(--ease-out-expo);
+  --t-slow: 500ms var(--ease-out-expo);
+
+  /* Semantic z-index scale - never use arbitrary values elsewhere */
+  --z-grain: 9999;
+  /* film-grain overlay: always on top */
+  --z-preloader: 9998;
+  /* preloader curtain */
+  --z-cursor: 9997;
+  /* detection-reticle custom cursor */
+  --z-nav: 100;
+  /* floating nav pill */
+  --z-mobile-menu: 99;
+  /* full-screen mobile overlay */
+  --z-above: 10;
+  /* in-card elevated elements */
+  --z-base: 1;
+  /* default stacking context */
+}
+
+/* ---- Mono utility - strict use for code, numbers, labels only ---- */
+.mono {
+  font-family: var(--font-jetbrains), 'JetBrains Mono', monospace;
+}
+
+/* ---------- Layout ---------- */
+.container {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding: 0 48px;
+  }
+}
+
+/* ============================================================
+   DOUBLE-BEZEL ARCHITECTURE
+   Premium card pattern: machined outer shell -> inner core
+   Usage: Wrap content in .bezel-shell > .bezel-core
+   ============================================================ */
+.bezel-shell {
+  background: rgba(232, 201, 122, 0.025);
+  border: 1px solid var(--border-hairline);
+  border-radius: 20px;
+  padding: 3px;
+  /* Outer shell shadow - wide ambient glow */
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--t-mid), border-color var(--t-mid);
+}
+
+.bezel-shell:hover {
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-hover);
+}
+
+.bezel-core {
+  background: var(--surface-1);
+  border-radius: calc(20px - 3px);
+  /* concentric curve math */
+  /* Inner edge highlight - simulates edge refraction of machined glass */
+  box-shadow: inset 0 1px 0 var(--edge-top), inset 0 0 0 1px rgba(201, 168, 82, 0.02);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Top-edge gradient highlight */
+.bezel-core::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      var(--edge-top) 30%,
+      rgba(225, 210, 170, 0.18) 50%,
+      var(--edge-top) 70%,
+      transparent 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ============================================================
+   SECTION LABEL SYSTEM
+   Stripped of numbered eyebrows - use only when 1 per 3 sections
+   ============================================================ */
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 64px;
+}
+
+/* The section-number class kept for backward compat but now styled subtly */
+.section-number {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+}
+
+.section-title {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.section-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-hairline);
+}
+
+/* ============================================================
+   NAV - Floating glass-pill island, detached from top
+   ============================================================ */
+.nav {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  /* translateZ(0) keeps the pill on a permanent, stable compositing layer so
+     its backdrop-filter doesn't re-promote/re-raster (jittering the WebGL
+     canvas beneath) when nav state changes during scroll. */
+  transform: translateX(-50%) translateZ(0);
+  will-change: transform;
+  z-index: var(--z-nav);
+  /* The pill itself */
+  background: rgba(13, 11, 9, 0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 100px;
+  /* Top-edge refraction highlight */
+  box-shadow:
+    inset 0 1px 0 rgba(201, 168, 82, 0.08),
+    0 4px 24px rgba(13, 11, 9, 0.6),
+    0 1px 2px rgba(13, 11, 9, 0.8);
+  transition: box-shadow var(--t-mid);
+}
+
+.nav-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+}
+
+.nav-logo {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-0);
+  letter-spacing: -0.02em;
+  padding: 4px 10px;
+  transition: color var(--t-fast);
+}
+
+.nav-logo .bracket {
+  color: var(--ink-3);
+  transition: color var(--t-fast);
+}
+
+.nav-logo:hover .bracket {
+  color: var(--accent);
+}
+
+.nav-links {
+  display: none;
+  gap: 2px;
+  align-items: center;
+}
+
+@media (min-width: 768px) {
+  .nav-links {
+    display: flex;
+  }
+}
+
+.nav-links a {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
+  padding: 6px 12px;
+  border-radius: 100px;
+  transition: color var(--t-fast), background var(--t-fast);
+  letter-spacing: -0.01em;
+}
+
+.nav-links a:hover {
+  color: var(--ink-1);
+  background: rgba(201, 168, 82, 0.06);
+}
+
+.nav-links a.is-active {
+  color: var(--accent);
+}
+
+.mobile-menu a.is-active {
+  color: var(--accent);
+}
+
+/* Resume CTA - "Button-in-Button" pill architecture */
+.nav-resume {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 7px 7px 14px;
+  background: var(--ink-0);
+  color: var(--surface-0);
+  border-radius: 100px;
+  letter-spacing: -0.01em;
+  transition: background var(--t-fast), transform var(--t-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nav-resume:hover {
+    background: var(--ink-1);
+    transform: scale(0.98);
+  }
+}
+
+.nav-resume:active {
+  transform: scale(0.96);
+}
+
+/* Nested arrow icon circle inside resume button */
+.nav-resume-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(13, 11, 9, 0.12);
+  font-size: 11px;
+  transition: transform var(--t-fast), background var(--t-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nav-resume:hover .nav-resume-arrow {
+    background: rgba(var(--accent-rgb), 0.2);
+    color: var(--accent);
+    transform: translate(1px, -1px) scale(1.05);
+  }
+}
+
+@media (min-width: 768px) {
+  .nav-resume {
+    display: inline-flex;
+  }
+}
+
+/* Mobile toggle - hamburger -> X morphing lines */
+.mobile-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background var(--t-fast);
+}
+
+.mobile-toggle:hover {
+  background: rgba(201, 168, 82, 0.06);
+}
+
+.mobile-toggle span {
+  width: 18px;
+  height: 1.5px;
+  background: var(--ink-2);
+  transition: all 300ms var(--ease-out-expo);
+  transform-origin: center;
+}
+
+.mobile-toggle[aria-expanded="true"] span:first-child {
+  transform: translateY(3.25px) rotate(45deg);
+}
+
+.mobile-toggle[aria-expanded="true"] span:last-child {
+  transform: translateY(-3.25px) rotate(-45deg);
+}
+
+@media (min-width: 768px) {
+  .mobile-toggle {
+    display: none;
+  }
+}
+
+/* Mobile menu - screen-filling glass overlay */
+.mobile-menu {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 11, 9, 0.96);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  padding: 32px;
+  z-index: calc(var(--z-nav) + 1);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  display: flex;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px) scale(0.98);
+  transition-property: opacity, transform, backdrop-filter, visibility;
+  transition-duration: 400ms, 400ms, 400ms, 0s;
+  transition-timing-function: var(--ease-out-expo), var(--ease-out-expo), var(--ease-out-expo), linear;
+  transition-delay: 0s, 0s, 0s, 400ms;
+}
+
+.mobile-menu.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  transition-delay: 0s;
+}
+
+.mobile-menu-close {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid rgba(var(--accent-rgb), 0.16);
+  border-radius: 50%;
+  background: rgba(13, 11, 9, 0.72);
+  color: var(--ink-1);
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+
+.mobile-menu-close:hover {
+  background: rgba(var(--accent-rgb), 0.08);
+  border-color: rgba(var(--accent-rgb), 0.32);
+}
+
+.mobile-menu-close span {
+  position: absolute;
+  width: 18px;
+  height: 1.5px;
+  background: currentColor;
+}
+
+.mobile-menu-close span:first-child {
+  transform: rotate(45deg);
+}
+
+.mobile-menu-close span:last-child {
+  transform: rotate(-45deg);
+}
+
+.mobile-menu a {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--ink-3);
+  padding: 14px 0;
+  letter-spacing: -0.03em;
+  transition: color var(--t-fast);
+}
+
+.mobile-menu a:hover {
+  color: var(--ink-0);
+}
+
+/* ============================================================
+   HERO TEXT UTILITIES
+   ============================================================ */
+.hero-greeting {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+  margin-bottom: 28px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-tagline {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: clamp(20px, 3vw, 25px);
+  font-weight: 400;
+  color: var(--ink-1);
+  line-height: 1.55;
+  max-width: 600px;
+  margin-bottom: 12px;
+  letter-spacing: -0.02em;
+}
+
+/* Serif italic counterpoint inside the tagline */
+.hero-tagline em {
+  font-family: var(--font-instrument), Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.1em;
+  letter-spacing: 0;
+  color: var(--accent);
+}
+
+.hero-sub {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: var(--text-body);
+  color: var(--ink-3);
+  max-width: 480px;
+  margin-bottom: 48px;
+  line-height: 1.7;
+  letter-spacing: -0.01em;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 767px) {
+  .hero-buttons {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+  .hero-buttons .btn {
+    width: 100%;
+    max-width: 280px;
+    justify-content: center;
+  }
+}
+
+/* ---------- Buttons - "Button-in-Button" pill architecture ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 18px;
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 100px;
+  transition: transform var(--t-fast), background var(--t-fast), box-shadow var(--t-fast);
+  cursor: pointer;
+  border: none;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+/* Primary button - white fill */
+.btn-primary {
+  background: var(--ink-0);
+  color: var(--surface-0);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    background: var(--ink-1);
+    transform: scale(0.98);
+  }
+}
+
+/* Nested arrow inside primary button */
+.btn-primary .btn-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(13, 11, 9, 0.10);
+  font-size: 13px;
+  flex-shrink: 0;
+  transition: transform var(--t-fast), background var(--t-fast), color var(--t-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover .btn-arrow {
+    background: rgba(var(--accent-rgb), 0.20);
+    color: var(--accent);
+    transform: translate(1px, -1px) scale(1.08);
+  }
+}
+
+/* Outline / ghost button */
+.btn-outline {
+  background: transparent;
+  color: var(--ink-2);
+  border: 1px solid var(--border-default);
+  padding: 11px 20px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-outline:hover {
+    border-color: var(--border-hover);
+    color: var(--ink-1);
+    background: rgba(201, 168, 82, 0.04);
+  }
+}
+
+/* ============================================================
+   HERO SECTION - cinematic runway + sticky tunnel
+   ============================================================ */
+
+/* 300 vh scroll runway */
+.hero-runway {
+  position: relative;
+  height: 300vh;
+}
+
+/* Viewport-height sticky shell */
+.hero-sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  /* Keep centered content clear of the floating nav pill */
+  padding-top: clamp(80px, 9vh, 116px);
+}
+
+/* JONATHAN split heading */
+.hero-name-split {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0;
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: clamp(60px, 10.5vw, 112px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  /* floor per design rules: >= -0.04em */
+  line-height: 0.9;
+  color: var(--ink-0);
+  margin-bottom: 36px;
+  text-wrap: nowrap;
+}
+
+.hero-char-group {
+  display: inline-flex;
+  will-change: transform;
+}
+
+.hero-char {
+  display: inline-block;
+  will-change: transform;
+  cursor: default;
+  user-select: none;
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  -webkit-text-fill-color: #FAF5EE;
+  transition: -webkit-text-fill-color var(--t-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hero-char:hover {
+    -webkit-text-fill-color: #C9A852;
+  }
+}
+
+/* -- Hero eyebrow - availability badge above the name -- */
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  padding: 8px 16px 8px 13px;
+  margin-bottom: 36px;
+  border: 1px solid rgba(var(--accent-rgb), 0.20);
+  border-radius: 100px;
+  background: rgba(var(--accent-rgb), 0.05);
+  box-shadow: inset 0 1px 0 rgba(201, 168, 82, 0.05);
+}
+
+.hero-eyebrow-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34d27b;
+  box-shadow: 0 0 8px rgba(52, 210, 123, 0.7);
+  animation: heroDotPulse 2.2s var(--ease-in-out-expo) infinite;
+  flex-shrink: 0;
+}
+
+@keyframes heroDotPulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* -- Hero atmosphere lives on .hero-3d-layer::before (behind the laptop
+      canvas) so the glow never tints the machine and fades out with the
+      layer at the projects handoff. See the .hero-3d-layer rule below. -- */
+
+@keyframes heroAtmoDrift {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(-2%, -1.2%, 0);
+  }
+}
+
+.hero-sub-content {
+  will-change: opacity, transform;
+}
+
+/* ============================================================
+   SPATIAL CARD - cinematic Z-axis fly-through
+   ============================================================ */
+.sc-runway {
+  position: relative;
+  height: 250vh;
+}
+
+.sc-sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* The card - now uses the Double-Bezel architecture inline */
+.sc-card {
+  pointer-events: all;
+  will-change: transform, filter, opacity;
+  width: min(740px, 90vw);
+  max-width: none;
+  /* Outer shell of the bezel */
+  background: rgba(201, 168, 82, 0.02);
+  border: 1px solid var(--border-hairline);
+  border-radius: 20px;
+  padding: 3px;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--t-mid), border-color var(--t-mid);
+}
+
+.sc-card-inner {
+  background: var(--surface-1);
+  border-radius: calc(20px - 3px);
+  box-shadow: inset 0 1px 0 var(--edge-top);
+  overflow: hidden;
+  position: relative;
+  padding: 40px;
+}
+
+/* Edge highlight on inner core */
+.sc-card-inner::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--edge-top) 40%, rgba(201, 168, 82, 0.15) 50%, var(--edge-top) 60%, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.sc-text {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sc-text>* {
+  overflow: hidden;
+}
+
+/* ============================================================
+   SPATIAL SECTION - clip-from-bottom section reveal
+   ============================================================ */
+.sp-runway {
+  position: relative;
+  /* 360vh (Building): the reveal scrub is spread across the first ~240vh (see
+     SpatialSection.tsx) for a slow, smooth glide-in, leaving the remaining
+     ~120vh as a settled .sp-sticky hold while the next sheet slides over it.
+     The reveal window stays comfortably shorter than the runway so the
+     pin-free boundary slide-over (StackTransitions) never starts covering
+     content before it finishes revealing. Skills overrides this height (it
+     uses a slower 360vh reveal window) — see .skills-spatial below. */
+  height: 360vh;
+}
+
+.sp-sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  /* "safe" falls back to start-alignment when content overflows,
+     so nothing ever slides up underneath the floating nav pill */
+  align-items: safe center;
+  overflow: visible;
+  padding-top: clamp(96px, 11vh, 132px);
+  padding-bottom: 24px;
+}
+
+@media (max-width: 767px) {
+  .sp-runway {
+    height: auto !important;
+  }
+  .sp-sticky {
+    position: static !important;
+    height: auto !important;
+    display: block !important;
+  }
+}
+
+.sp-content {
+  width: 100%;
+  will-change: opacity, clip-path;
+}
+
+.sp-reveal {
+  overflow: visible;
+  will-change: clip-path, transform;
+}
+
+/* ============================================================
+   GRAVITY PIT - Matter.js DOM-based physics playground
+   Default: static, silent, premium grid layout
+   Physics only activates on user interaction
+   ============================================================ */
+.gravity-pit {
+  position: relative;
+  width: 100%;
+  height: 420px;
+  /* Bezel-shell outer ring */
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--surface-1);
+  /* Subtle grid pattern */
+  background-image:
+    linear-gradient(to right, rgba(201, 168, 82, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(201, 168, 82, 0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  /* Top-edge refraction highlight */
+  box-shadow:
+    inset 0 1px 0 var(--edge-top),
+    var(--shadow-card);
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Phones: taller pit so the shrunk pill grid fits (JS reads offsetHeight
+   for the physics walls, so this just works). */
+@media (max-width: 767px) {
+  .gravity-pit {
+    height: 560px;
+  }
+}
+
+/* Static by default - cursor only changes once physics is active */
+.gravity-pit.physics-active {
+  cursor: grab;
+}
+
+.gravity-pit.physics-active:active {
+  cursor: grabbing;
+}
+
+/* Each skill pill - machined hardware aesthetic */
+.gravity-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* dimensions set dynamically in useEffect */
+  /* Default static position - transform is set by JS grid layout */
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-2);
+  border-radius: 100px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  white-space: nowrap;
+  pointer-events: none;
+  /* overridden when physics is active */
+  will-change: transform;
+  /* Drags start on a pill (physics grab); swipes on empty pit space
+     stay native page scroll. */
+  touch-action: none;
+  /* Machined glass inner-edge highlight */
+  box-shadow:
+    inset 0 1px 0 rgba(201, 168, 82, 0.08),
+    inset 0 -1px 0 rgba(13, 11, 9, 0.3),
+    0 1px 2px rgba(13, 11, 9, 0.6);
+  transition:
+    background var(--t-mid),
+    border-color var(--t-mid),
+    color var(--t-mid);
+}
+
+/* Physics-active state - pills become grab-able */
+.gravity-pit.physics-active .gravity-pill {
+  pointer-events: auto;
+}
+
+/* Reset control - borrows the pill recipe above so it reads as one of
+   the set, but it is a real button, not a body: no transform, no
+   physics, and it never falls. Box metrics (top/right/width/height/
+   font-size) come from JS so they track metricsFor() exactly - the same
+   numbers reserve its gap in row 1 of buildStaticGrid. */
+.gravity-reset {
+  position: absolute;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-2);
+  border-radius: 100px;
+  font-family: var(--font-jetbrains), monospace;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(201, 168, 82, 0.08),
+    inset 0 -1px 0 rgba(13, 11, 9, 0.3),
+    0 1px 2px rgba(13, 11, 9, 0.6);
+  transition:
+    background var(--t-mid),
+    border-color var(--t-mid),
+    color var(--t-mid);
+}
+
+/* Dimmer than a skill pill at rest so it reads as a control rather than
+   data, and brighter than one on hover so it reads as the only thing
+   here that responds to a plain click. */
+@media (hover: hover) and (pointer: fine) {
+  .gravity-reset:hover {
+    background: rgba(var(--accent-rgb), 0.1);
+    border-color: rgba(var(--accent-rgb), 0.32);
+    color: var(--ink-1);
+  }
+}
+
+.gravity-reset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gravity-reset {
+    transition: none;
+  }
+}
+
+/* Hover state - electric blue micro-accent */
+@media (hover: hover) and (pointer: fine) {
+  .gravity-pit.physics-active .gravity-pill:hover {
+    background: rgba(var(--accent-rgb), 0.08);
+    border-color: rgba(var(--accent-rgb), 0.25);
+    color: var(--ink-1);
+  }
+}
+
+/* ============================================================
+   PROJECT CARDS
+   ============================================================ */
+.projects {
+  padding: var(--section-padding);
+}
+
+@media (max-width: 767px) {
+  .projects {
+    padding: var(--section-padding-mobile);
+  }
+}
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+@media (min-width: 768px) {
+  .projects-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Project card - Double-Bezel outer shell */
+.project-card {
+  background: rgba(201, 168, 82, 0.02);
+  border: 1px solid var(--border-hairline);
+  border-radius: 20px;
+  padding: 3px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: box-shadow var(--t-mid), border-color var(--t-mid);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .project-card:hover {
+    border-color: var(--border-subtle);
+    box-shadow: var(--shadow-hover);
+  }
+}
+
+/* Inner core */
+.project-card-inner {
+  background: var(--surface-1);
+  border-radius: calc(20px - 3px);
+  box-shadow: inset 0 1px 0 var(--edge-top);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+  position: relative;
+  flex: 1;
+}
+
+.project-card-inner::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--edge-top) 40%, rgba(201, 168, 82, 0.12) 50%, var(--edge-top) 60%, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.project-overline {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: var(--text-label);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+}
+
+.project-title {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink-0);
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+}
+
+.project-subtitle {
+  font-family: var(--font-jakarta), sans-serif;
+  font-weight: 400;
+  color: var(--ink-3);
+  font-size: 14px;
+  margin-top: -6px;
+}
+
+.project-description {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 14px;
+  color: var(--ink-2);
+  line-height: 1.75;
+  max-width: 65ch;
+}
+
+.project-description strong {
+  color: var(--ink-1);
+  font-weight: 600;
+}
+
+.project-tech {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-top: auto;
+  letter-spacing: 0.04em;
+}
+
+.project-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* Tags - tight radius, no pill */
+.project-tag {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink-3);
+  padding: 4px 10px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 6px;
+  background: rgba(201, 168, 82, 0.025);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.project-links {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.project-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+  transition: color var(--t-fast);
+  letter-spacing: 0.02em;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .project-link:hover {
+    color: var(--accent);
+  }
+}
+
+.project-link svg {
+  width: 15px;
+  height: 15px;
+}
+
+.projects-cta {
+  margin-top: 64px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.projects-cta p {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 14px;
+  color: var(--ink-3);
+}
+
+/* Project image */
+.project-image-wrap {
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-hairline);
+}
+
+.project-image {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+  opacity: 0.80;
+  transition: opacity var(--t-slow);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .project-card:hover .project-image {
+    opacity: 1;
+  }
+}
+
+/* Pipeline placeholder */
+.project-pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 16px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  margin-bottom: 4px;
+  border: 1px solid var(--border-hairline);
+}
+
+.pipeline-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pipeline-step {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  color: var(--ink-2);
+  padding: 4px 10px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 5px;
+  background: rgba(201, 168, 82, 0.02);
+  letter-spacing: 0.04em;
+}
+
+.pipeline-arrow {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+/* ============================================================
+   ABOUT - Scroll-Scrub Text Reveal Layout
+   ============================================================ */
+.about-runway {
+  position: relative;
+}
+
+.about-sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  /* "safe" falls back to start-alignment when content overflows,
+     so nothing ever slides up underneath the floating nav pill */
+  align-items: safe center;
+  overflow: hidden;
+  padding-top: clamp(64px, 7vh, 96px);
+  padding-bottom: 24px;
+}
+
+@media (max-width: 767px) {
+  .about-runway {
+    height: auto !important;
+  }
+  .about-sticky {
+    position: static !important;
+    height: auto !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+}
+
+.about-split-container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 48px;
+  align-items: center;
+}
+
+@media (min-width: 768px) {
+  .about-split-container {
+    padding: 0 48px;
+  }
+}
+
+@media (min-width: 900px) {
+  .about-split-container {
+    /* Asymmetric editorial split - prose leads, terminal recedes */
+    grid-template-columns: 1.12fr 0.88fr;
+    gap: 96px;
+  }
+
+  /* Staggered baseline: terminal drops below the prose's optical line */
+  .about-terminal-wrap {
+    margin-top: clamp(40px, 12vh, 130px);
+  }
+}
+
+.about-terminal-wrap {
+  min-width: 0;
+  width: 100%;
+}
+
+.about-split-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.about-bio {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.about-bio-para {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: clamp(15px, 1.5vw, 17px);
+  line-height: 1.85;
+  color: transparent;
+}
+
+.about-bio-para strong {
+  /* Editorial emphasis - serif italic at a slightly larger optical size */
+  font-family: var(--font-instrument), Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.14em;
+  letter-spacing: 0;
+  color: inherit;
+}
+
+/* Opening paragraph reads as an editorial lede */
+.about-bio-para--lede {
+  font-size: clamp(16px, 1.9vw, 23px);
+  line-height: 1.55;
+  letter-spacing: -0.025em;
+}
+
+.reveal-word {
+  display: inline;
+  color: rgba(201, 168, 82, 0.12);
+  transition: color 80ms ease;
+  will-change: color;
+}
+
+/* Right column - terminal container */
+.about-terminal-wrap {
+  display: flex;
+  align-items: center;
+  min-height: 450px;
+  width: 100%;
+  will-change: transform, opacity;
+}
+
+/* Terminal - Double-Bezel applied */
+.about-snippet {
+  width: 100%;
+  /* Outer shell */
+  background: rgba(201, 168, 82, 0.02);
+  border: 1px solid var(--border-hairline);
+  border-radius: 16px;
+  padding: 3px;
+  box-shadow: var(--shadow-card);
+}
+
+.about-snippet-inner {
+  background: var(--surface-1);
+  border-radius: calc(16px - 3px);
+  box-shadow: inset 0 1px 0 var(--edge-top);
+  overflow: hidden;
+}
+
+.snippet-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-hairline);
+  background: rgba(201, 168, 82, 0.015);
+}
+
+.snippet-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ink-4);
+  flex-shrink: 0;
+}
+
+.snippet-dot:nth-child(1) {
+  background: #ff5f57;
+}
+
+.snippet-dot:nth-child(2) {
+  background: #febc2e;
+}
+
+.snippet-dot:nth-child(3) {
+  background: #28c840;
+}
+
+.snippet-filename {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-left: 8px;
+  letter-spacing: 0.02em;
+}
+
+.snippet-body {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--ink-2);
+  padding: 24px;
+  margin: 0;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* ============================================================
+   CURRENTLY BUILDING - Agentic Automation Pipeline
+   ============================================================ */
+.pipeline-wrapper {
+  position: relative;
+  padding: 32px 0 40px;
+}
+
+.pipeline-grid-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 16px;
+  opacity: 0.5;
+}
+
+.pipeline-connector-svg {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: visible;
+}
+
+@media (min-width: 640px) {
+  .pipeline-connector-svg {
+    display: block;
+  }
+}
+
+.pipeline-connector-line {
+  stroke: var(--border-hairline);
+  stroke-width: 1;
+  stroke-dasharray: 3 7;
+  transition: stroke 350ms var(--ease-out-expo);
+}
+
+.pipeline-wrapper:has(.pipeline-card:hover) .pipeline-connector-line {
+  stroke: var(--border-subtle);
+}
+
+.pipeline-packet {
+  fill: rgba(201, 168, 82, 0.5);
+  opacity: 0;
+  filter: blur(0.5px);
+}
+
+.pipeline-wrapper:has(.pipeline-card:hover) .pipeline-packet {
+  opacity: 1;
+  animation: packetTravel 1.8s var(--ease-in-out-expo) infinite;
+}
+
+@keyframes packetTravel {
+  0% {
+    transform: translateX(0px);
+    opacity: 0;
+  }
+
+  8% {
+    transform: translateX(0px);
+    opacity: 1;
+  }
+
+  92% {
+    transform: translateX(var(--pipe-gap, 24px));
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(var(--pipe-gap, 24px));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pipeline-wrapper:has(.pipeline-card:hover) .pipeline-packet {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.building-grid {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  perspective: 1200px;
+  perspective-origin: 50% 40%;
+}
+
+@media (min-width: 640px) {
+  .building-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 64px;
+  }
+}
+
+/* .building-card: CometCard inside owns all visual bezel styling */
+
+.building-card-inner {
+  /* Inner core */
+  background: var(--surface-1);
+  border-radius: calc(20px - 3px);
+  box-shadow: inset 0 1px 0 var(--edge-top);
+  padding: 28px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: visible;
+  position: relative;
+}
+
+.building-card-inner::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--edge-top) 40%, rgba(201, 168, 82, 0.12) 50%, var(--edge-top) 60%, transparent);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* .building-card hover now handled by .comet-card-wrap:hover .comet-card-shell */
+
+/* Status row */
+.building-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+}
+
+.status-dot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #28c840;
+  box-shadow: 0 0 6px rgba(40, 200, 64, 0.6);
+}
+
+.status-dot-pulse {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1px solid rgba(40, 200, 64, 0.4);
+  animation: radarPulse 2.2s ease-out infinite;
+}
+
+@keyframes radarPulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.8;
+  }
+
+  70% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-dot-pulse {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.building-status-label {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+}
+
+.pipeline-node-id {
+  margin-left: auto;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  color: var(--ink-4);
+  letter-spacing: 0.06em;
+}
+
+.pipeline-title {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-0);
+  letter-spacing: -0.025em;
+  line-height: 1.3;
+}
+
+.pipe-steps-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 2px;
+  padding: 10px 12px;
+  background: rgba(201, 168, 82, 0.02);
+  border: 1px solid var(--border-hairline);
+  border-radius: 8px;
+  position: relative;
+  overflow: visible;
+}
+
+.pipe-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pipe-step-label {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  color: var(--ink-4);
+  letter-spacing: 0.05em;
+  transition: color 350ms var(--ease-out-expo), text-shadow 350ms var(--ease-out-expo);
+}
+
+.pipe-step-label.pipe-step--lit {
+  color: rgba(201, 168, 82, 0.80);
+  text-shadow: 0 0 8px rgba(201, 168, 82, 0.3), 0 0 16px rgba(201, 168, 82, 0.12);
+}
+
+.pipe-arrow {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  color: var(--ink-4);
+  transition: color 350ms var(--ease-out-expo);
+}
+
+.pipe-step:has(.pipe-step--lit)+.pipe-step .pipe-arrow {
+  color: var(--ink-3);
+}
+
+.pipeline-desc {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 13px;
+  color: var(--ink-3);
+  line-height: 1.7;
+  letter-spacing: -0.005em;
+}
+
+/* Z-layer parallax utility */
+.pipeline-z {
+  position: relative;
+  will-change: transform;
+  transform: translateZ(40px);
+}
+
+/* Draggable scrub playhead - Electric Blue accent */
+.pipeline-playhead {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+  cursor: grab;
+  z-index: 10;
+  touch-action: none;
+  user-select: none;
+  box-shadow:
+    0 0 6px rgba(var(--accent-rgb), 0.5),
+    0 0 16px rgba(var(--accent-rgb), 0.18);
+  opacity: 0.7;
+  transition: opacity var(--t-fast), box-shadow var(--t-fast);
+}
+
+.pipeline-playhead:hover,
+.pipeline-playhead:active {
+  cursor: grabbing;
+  opacity: 1;
+  box-shadow:
+    0 0 8px rgba(var(--accent-rgb), 0.75),
+    0 0 22px rgba(var(--accent-rgb), 0.32);
+}
+
+.pipeline-card--executing {
+  animation: cardExecute 0.55s var(--ease-out-expo) forwards;
+}
+
+@keyframes cardExecute {
+  0% {
+    border-color: rgba(var(--accent-rgb), 0.45);
+    box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.18), var(--shadow-card);
+  }
+
+  50% {
+    border-color: rgba(var(--accent-rgb), 0.15);
+    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.08), var(--shadow-card);
+  }
+
+  100% {
+    border-color: var(--border-hairline);
+    box-shadow: var(--shadow-card);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pipeline-card--executing {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   SKILLS
+   ============================================================ */
+.skills {
+  padding: var(--section-padding);
+}
+
+@media (max-width: 767px) {
+  .skills {
+    padding: var(--section-padding-mobile);
+  }
+}
+
+.skills-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 48px;
+}
+
+@media (min-width: 768px) {
+  .skills-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 64px 48px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .skills-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.skill-category-title {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-0);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: -0.02em;
+}
+
+.skill-status {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  color: var(--ink-3);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+.skill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skill-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 14px;
+}
+
+.skill-name {
+  color: var(--ink-2);
+  letter-spacing: -0.01em;
+}
+
+.skill-tag {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+}
+
+/* ============================================================
+   CONTACT
+   ============================================================ */
+.contact {
+  padding: var(--section-padding);
+}
+
+@media (max-width: 767px) {
+  .contact {
+    padding: var(--section-padding-mobile);
+  }
+}
+
+.contact-inner {
+  text-align: center;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.contact-heading {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 800;
+  color: var(--ink-0);
+  letter-spacing: -0.04em;
+  margin-bottom: 16px;
+  line-height: 1.0;
+}
+
+.contact-text {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: var(--text-body);
+  color: var(--ink-2);
+  line-height: 1.7;
+  margin-bottom: 40px;
+  letter-spacing: -0.01em;
+  max-width: 65ch;
+  margin-inline: auto;
+}
+
+.contact-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.contact-links> :nth-child(odd) {
+  justify-self: end;
+}
+
+.contact-links> :nth-child(even) {
+  justify-self: start;
+}
+
+@media (max-width: 767px) {
+  .contact-links {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+  .contact-links > :nth-child(odd),
+  .contact-links > :nth-child(even) {
+    justify-self: center;
+  }
+  .contact-link {
+    width: 100%;
+    max-width: 280px;
+    justify-content: center;
+  }
+}
+
+/* Contact link - same bezel-shell pattern at small scale */
+.contact-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 18px;
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: rgba(201, 168, 82, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: 100px;
+  letter-spacing: -0.01em;
+  transition:
+    color var(--t-fast),
+    border-color var(--t-fast),
+    background var(--t-fast),
+    transform var(--t-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .contact-link:hover {
+    border-color: var(--border-hover);
+    color: var(--ink-1);
+    background: rgba(201, 168, 82, 0.04);
+    transform: translateY(-1px);
+  }
+}
+
+.contact-link:active {
+  transform: scale(0.97);
+}
+
+.contact-link svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+/* -- Footer - quiet baseline sign-off on a floor surface -- */
+.site-footer {
+  position: relative;
+  z-index: 1;
+  /* a touch darker than --surface-0 so it reads as the page's floor */
+  background: #0D0B09;
+  border-top: 1px solid var(--border-hairline);
+  padding: 26px 48px 22px;
+}
+
+.footer-row {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  display: grid;
+  /* 1fr / auto / 1fr keeps the status line dead-centered regardless of the
+     side widths - the fix for the old space-between unevenness. */
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+/* {J} logo = back-to-top control */
+.footer-logo {
+  justify-self: start;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink-0);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.footer-logo .bracket {
+  color: var(--ink-3);
+  transition: color var(--t-fast);
+}
+
+.footer-logo:hover .bracket {
+  color: var(--accent);
+}
+
+.footer-status {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--accent);
+}
+
+.footer-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #7CCF9A;
+  /* signal-green pulse - stilled automatically under reduced motion */
+  animation: footerPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes footerPulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+
+.footer-stack {
+  justify-self: end;
+  color: var(--ink-4);
+}
+
+.footer-sub {
+  max-width: var(--container-max);
+  /* aligned to the same edges as the main row's outer cells */
+  margin: 0 auto;
+  padding-top: 14px;
+  margin-top: 14px;
+  border-top: 1px solid var(--border-hairline);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: #5A6670;
+}
+
+.footer-clock {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+}
+
+@media (max-width: 1023px) {
+  .site-footer {
+    padding: 24px 24px 20px;
+  }
+
+  /* Collapse to a centered vertical stack */
+  .footer-row {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+    gap: 14px;
+  }
+
+  .footer-logo,
+  .footer-status,
+  .footer-stack {
+    justify-self: center;
+  }
+
+  .footer-sub {
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+/* ============================================================
+   DIVIDER
+   ============================================================ */
+.section-divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(122, 94, 34, 0.5), transparent);
+  border: none;
+  max-width: var(--container-max);
+  margin: 0 auto;
+}
+
+/* ============================================================
+   TERMINAL BLOCK - animated typewriter terminal
+   ============================================================ */
+.term-shell {
+  width: 100%;
+  background: rgba(250, 245, 238, 0.015);
+  border: 1px solid var(--border-hairline);
+  border-radius: 16px;
+  padding: 3px;
+  box-shadow: var(--shadow-card);
+}
+
+.term-shell-inner {
+  background: #161310;
+  border-radius: calc(16px - 3px);
+  box-shadow: inset 0 1px 0 var(--edge-top);
+  overflow: hidden;
+}
+
+.term-bar {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background: rgba(201, 168, 82, 0.015);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.term-dots {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.term-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.term-dot--red {
+  background: rgba(239, 68, 68, 0.8);
+}
+
+.term-dot--yellow {
+  background: rgba(234, 179, 8, 0.8);
+}
+
+.term-dot--green {
+  background: rgba(34, 197, 94, 0.8);
+}
+
+.term-title {
+  margin-left: 16px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+}
+
+.term-body {
+  padding: 20px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 13px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-height: 60px;
+  transition: max-height 700ms var(--ease-out-expo);
+}
+
+.term-body.is-expanded {
+  max-height: 600px;
+}
+
+.term-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-2);
+}
+
+.term-line--mt {
+  margin-top: 16px;
+}
+
+.term-prompt-arrow {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.term-prompt-dir {
+  color: var(--accent-cool);
+  flex-shrink: 0;
+}
+
+.term-typed {
+  color: var(--ink-1);
+}
+
+.term-output {
+  margin: 12px 0 0;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 13px;
+  line-height: 1.9;
+  white-space: pre;
+  color: var(--ink-2);
+}
+
+.term-key {
+  color: #D8BC87;
+}
+
+.term-str {
+  color: #AEC6A4;
+}
+
+.term-punct {
+  color: #525E78;
+}
+
+.terminal-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  background: var(--ink-2);
+  border-radius: 1px;
+  animation: blink 1s step-end infinite;
+  flex-shrink: 0;
+}
+
+@keyframes blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+}
+
+.fade-in-fast {
+  animation: fadeInFast 0.3s var(--ease-out-expo) forwards;
+}
+
+@keyframes fadeInFast {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   FADE-IN ANIMATION
+   ============================================================ */
+.fade-in {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.6s var(--ease-out-expo), transform 0.6s var(--ease-out-expo);
+}
+
+.fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.fade-in-delay-1 {
+  transition-delay: 0.08s;
+}
+
+.fade-in-delay-2 {
+  transition-delay: 0.16s;
+}
+
+.fade-in-delay-3 {
+  transition-delay: 0.24s;
+}
+
+.fade-in-delay-4 {
+  transition-delay: 0.32s;
+}
+
+.fade-in-delay-5 {
+  transition-delay: 0.40s;
+}
+
+.fade-in-delay-6 {
+  transition-delay: 0.48s;
+}
+
+/* ============================================================
+   SCROLLBAR - minimal chrome
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-0);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ink-4);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-3);
+}
+
+/* ============================================================
+   SELECTION
+   ============================================================ */
+::selection {
+  background: rgba(var(--accent-rgb), 0.18);
+  color: var(--ink-0);
+}
+
+/* ============================================================
+   HERO - Two-column inner grid for text + canvas sequence
+   ============================================================ */
+.hero-inner-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 48px;
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .hero-inner-grid {
+    /* Text takes 55%, canvas takes 45% */
+    grid-template-columns: 55fr 45fr;
+    gap: 64px;
+  }
+}
+
+.hero-text-col {
+  /* The text column - no constraints, lets the heading breathe */
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================
+   CANVAS SEQUENCE - hero 3D object frame scrubber
+   ============================================================ */
+.hero-canvas-wrap {
+  position: relative;
+  width: 100%;
+  /* Aspect ratio matches a typical square-ish 3D object render */
+  aspect-ratio: 1 / 1;
+  /* On mobile, hide by default to preserve the name heading */
+  display: none;
+  will-change: opacity, transform;
+}
+
+@media (min-width: 900px) {
+  .hero-canvas-wrap {
+    display: block;
+  }
+}
+
+.hero-sequence-canvas,
+.canvas-seq {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  /* Subtle inner glow - makes the canvas feel like it's emitting light */
+  box-shadow:
+    0 0 0 1px var(--border-hairline),
+    0 0 60px rgba(var(--accent-rgb), 0.06),
+    inset 0 1px 0 rgba(201, 168, 82, 0.04);
+}
+
+/* Vignette overlay - blends the canvas edges into the dark background.
+   Uses the exact body/card background hex to prevent muddy edges. */
+.hero-canvas-vignette {
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, #0D0B09 100%);
+  opacity: 0.8;
+}
+
+/* ============================================================
+   GLASS IMAGE - WebGL R3F canvas wrapper
+   ============================================================ */
+.glass-image-wrap {
+  position: relative;
+  width: 100%;
+  /* Match the static project-image height */
+  height: 200px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--border-hairline);
+  cursor: crosshair;
+  /* signals interactivity without being distracting */
+}
+
+.glass-image-canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Fallback for SSR - matches static image sizing */
+.glass-image-fallback {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+  opacity: 0.80;
+}
+
+/* Placeholder - styled to match the project palette */
+.glass-image-placeholder {
+  width: 100%;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  color: var(--ink-4);
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  background: var(--surface-2);
+}
+
+/* The R3F <canvas> element */
+canvas.glass-image-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Project glass image - matches existing project-image dimensions */
+.project-glass-image {
+  width: 100%;
+  height: 200px;
+}
+
+/* ============================================================
+   SC-CARD - 3D perspective + Z-layer system
+   ============================================================ */
+
+/* Enable 3D transform space on the card itself */
+.sc-card--3d {
+  transform-style: preserve-3d;
+  perspective: 900px;
+  perspective-origin: 50% 40%;
+  will-change: transform, filter, opacity;
+}
+
+.sc-card--3d .sc-card-inner {
+  /* Inner core also participates in 3D space */
+  transform-style: preserve-3d;
+  overflow: visible;
+  /* allow z-layer children to visually pop */
+}
+
+/* Z-layer utility - inner elements that float at different depths */
+.sc-z-layer {
+  position: relative;
+  will-change: transform;
+  /* Base resting Z - JS overrides per-layer */
+  transform: translateZ(4px);
+  transform-style: preserve-3d;
+}
+
+.sc-z-image {
+  /* Image layer stays closest to the card plane */
+  transform: translateZ(2px);
+}
+
+/* ============================================================
+   STICKY DECK - Project Cards Stack
+   Cards use position:sticky to stack; GSAP animates scale/opacity
+   on background cards as each new card slides over them.
+   ============================================================ */
+
+/* ============================================================
+   STICKY DECK - Asymmetric Split Layout
+   Left:  sticky text panel that crossfades between projects
+   Right: stacking image cards using position:sticky + GSAP depth
+   ============================================================ */
+
+/* Section shell */
+.sticky-deck-section {
+  padding-bottom: 128px;
+}
+
+/* Below 900px the project chapter does not run the desktop laptop-to-projects
+   dissolve. Override the initial inline reveal gate so the static deck remains
+   visible without depending on scrub timing. */
+@media (max-width: 899px) {
+  .sticky-deck-section {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
+
+/* Section header - a full standalone page. Centered display heading
+   over a clean obsidian field, ready for a 3D background layer to be
+   slotted behind it later. */
+.sd-header {
+  /* Relative (not sticky): the intro is a full-screen title that scrolls
+     away once, then the case-study track's sticky viewport takes over.
+     A sticky header would re-cover the projects after the scrub released. */
+  position: relative;
+  z-index: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: 96px;
+  padding-bottom: 48px;
+}
+
+.sd-header .ed-header {
+  margin-bottom: 0;
+}
+
+/* Scroll cue - anchored to the page's bottom-left grid edge */
+.sd-header-cue {
+  position: absolute;
+  bottom: 44px;
+  left: 48px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.20em;
+  animation: cueFloat 2.6s var(--ease-in-out-expo) infinite;
+}
+
+@keyframes cueFloat {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(7px);
+  }
+}
+
+@media (max-width: 767px) {
+  .sd-header-cue {
+    left: 24px;
+    bottom: 32px;
+  }
+
+  .sticky-deck-section {
+    padding-bottom: 80px;
+  }
+}
+
+/* --------------------------------------------------------------
+   CASE-STUDY STAGE - one project on screen at a time
+
+   Desktop: a tall .cs-track provides scroll length while the inner
+   .cs-viewport is held still with position:sticky (NOT a GSAP pin -
+   .stack-section is transformed by StackTransitions, which would
+   break position:fixed; this matches the sticky pattern About /
+   Contact use). A scrub trigger reads scroll and crossfades the
+   slides (see StickyDeckSection.tsx). The rail jumps on click.
+   Mobile / reduced-motion: the track is auto-height and the viewport
+   is static, so slides simply flow as a plain vertical stack.
+   -------------------------------------------------------------- */
+.cs-track {
+  position: relative;
+  width: 100%;
+}
+
+.cs-viewport {
+  position: relative;
+  z-index: 1;
+  background: var(--surface-0);
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 48px;
+}
+
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  /* ~85vh of scroll per project transition - a deliberate beat
+     without an exhausting track. */
+  .cs-track {
+    height: calc(100vh + (var(--cs-count, 4) - 1) * 85vh);
+  }
+
+  .cs-viewport {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+  }
+}
+
+/* Giant ghost index numeral behind the stage */
+.cs-ghost {
+  position: absolute;
+  top: -6%;
+  right: 24px;
+  font-family: var(--font-jetbrains), monospace;
+  font-weight: 700;
+  font-size: clamp(180px, 26vw, 340px);
+  line-height: 0.8;
+  color: rgba(237, 229, 216, 0.025);
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+.cs-topbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.cs-eyebrow {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.cs-counter {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+
+.cs-counter-cur {
+  color: var(--ink-1);
+}
+
+/* Slide host - vertical stack by default (mobile / reduced-motion);
+   on the desktop scrub it collapses to a single block holding the
+   absolutely-stacked, crossfading slides. */
+.cs-stagebox {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 96px;
+}
+
+.cs-slide {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 56px;
+  align-items: center;
+}
+
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  .cs-stagebox {
+    display: block;
+    min-height: 58vh;
+  }
+
+  .cs-slide {
+    position: absolute;
+    inset: 0;
+    will-change: opacity;
+  }
+}
+
+/* Visual column = the image/pipeline card + a caption beneath it */
+.cs-visual-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Large project visual */
+.cs-visual {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background: #1F1B18;
+  border: 0.5px solid var(--border-hairline);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* -- Image carousel ------------------------------------------- */
+.cs-imgwrap {
+  position: absolute;
+  inset: 0;
+  cursor: zoom-in;
+}
+
+.cs-img-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.cs-img-slide.is-cur {
+  opacity: 1;
+}
+
+/* Edge arrows - hidden until hover/focus, never overlap the lightbox click */
+.cs-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ink-1);
+  background: rgba(13, 11, 9, 0.55);
+  border: 0.5px solid var(--border-hairline);
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.cs-arrow-prev { left: 12px; }
+.cs-arrow-next { right: 12px; }
+
+.cs-visual:hover .cs-arrow,
+.cs-arrow:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cs-arrow:hover {
+    background: hsl(var(--card-hue) / 0.25);
+    border-color: hsl(var(--card-hue));
+  }
+}
+
+/* Touch / no-hover: keep arrows visible since there's no hover affordance */
+@media (hover: none) {
+  .cs-arrow { opacity: 0.85; }
+}
+
+/* Touch tap target >= 44px for the carousel arrows */
+@media (max-width: 767px) {
+  .cs-arrow {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* Position dots */
+.cs-dots {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  gap: 7px;
+}
+
+.cs-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: rgba(237, 229, 216, 0.3);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.cs-dot.is-active {
+  background-color: hsl(var(--card-hue));
+  transform: scale(1.25);
+}
+
+
+/* Touch: pad the dot's clickable box out to ~42px while keeping the
+   visual dot small (placed AFTER the base .cs-dot so it isn't overridden -
+   media queries add no specificity). */
+@media (max-width: 767px) {
+  .cs-dots {
+    gap: 4px;
+    bottom: 10px;
+  }
+
+  .cs-dot {
+    box-sizing: content-box;
+    width: 10px;
+    height: 10px;
+    padding: 16px;
+    background-clip: content-box;
+  }
+
+  .cs-dot.is-active {
+    transform: scale(1);
+  }
+}
+
+/* -- Caption under the image ---------------------------------- */
+.cs-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 30px;
+}
+
+.cs-caption-alt {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+
+.cs-caption-metric {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: #5C667A;
+}
+
+/* Copy column */
+.cs-text {
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+}
+
+.cs-title {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: clamp(24px, 2.4vw, 34px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  color: var(--ink-1);
+  margin: 0 0 6px;
+}
+
+.cs-subtitle {
+  font-family: var(--font-instrument), Georgia, serif;
+  font-style: italic;
+  font-size: 15px;
+  margin-bottom: 16px;
+}
+
+.cs-desc {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  max-width: 48ch;
+  margin: 0 0 16px;
+}
+
+.cs-note {
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.6;
+  color: var(--ink-4);
+  margin: 0 0 16px;
+}
+
+/* Source / demo link row under each project's copy */
+.cs-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+  margin-top: 18px;
+}
+
+/* Live Demo stands out from the muted source chips */
+.cs-demo {
+  color: var(--accent);
+}
+
+/* Progress rail + knob */
+.cs-progress {
+  position: relative;
+  height: 2px;
+  background: rgba(237, 229, 216, 0.08);
+  border-radius: 2px;
+  margin: 30px 0 16px;
+  z-index: 2;
+}
+
+.cs-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.cs-progress-knob {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-1);
+  transform: translateX(-50%);
+}
+
+/* Clickable thumbnail rail */
+.cs-rail {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 12px;
+}
+
+.cs-thumb {
+  flex: 1;
+  text-align: left;
+  background: #161310;
+  border: 0.5px solid var(--border-hairline);
+  border-radius: 6px;
+  padding: 12px 14px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+}
+
+.cs-thumb.is-active {
+  opacity: 1;
+  border: 1.5px solid var(--accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cs-thumb:hover {
+    opacity: 1;
+    background: rgba(237, 229, 216, 0.03);
+  }
+}
+
+.cs-thumb-num {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  margin-bottom: 3px;
+}
+
+.cs-thumb-name {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 13px;
+  color: var(--ink-1);
+}
+
+/* -- Mobile / reduced-motion: plain vertical stack -- */
+@media (max-width: 767px) {
+  .cs-viewport {
+    padding: 0 24px;
+  }
+
+  .cs-stagebox {
+    display: flex;
+    flex-direction: column;
+    gap: 88px;
+  }
+
+  .cs-slide {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .cs-text {
+    transform: none !important;
+  }
+
+  .cs-ghost,
+  .cs-counter,
+  .cs-progress {
+    display: none;
+  }
+
+  .cs-rail {
+    flex-wrap: wrap;
+    margin-top: 40px;
+  }
+
+  .cs-thumb {
+    flex: 1 1 40%;
+    opacity: 1;
+  }
+}
+
+/* Per-card top-edge accent line */
+.sd-card-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      hsla(var(--card-hue, 210, 100%, 56%), 0.6) 30%,
+      hsla(var(--card-hue, 210, 100%, 56%), 0.9) 50%,
+      hsla(var(--card-hue, 210, 100%, 56%), 0.6) 70%,
+      transparent 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Real image */
+.sd-img-frame {
+  position: absolute;
+  inset: 3px;
+  border-radius: 13px;
+  overflow: hidden;
+}
+
+.sd-img {
+  /* contain (not cover) so the whole screenshot is visible; the
+     #1F1B18 .cs-visual frame provides clean letterboxing. */
+  object-fit: contain;
+}
+
+/* Vignette overlay - faint now that the caption moved out from over the
+   image; just enough to seat the image in the frame. */
+.sd-img-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom, transparent 75%, rgba(13, 11, 9, 0.28) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Pipeline visualisation */
+/* -- High-End Animated Pipeline -- */
+.sd-pipeline {
+  position: absolute;
+  inset: 3px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 32px;
+}
+
+.sd-pipeline-step {
+  display: flex;
+  align-items: center;
+}
+
+/* Mobile: let the pipeline wrap nodes to the next line when space is
+   tight instead of cramping the row. */
+@media (max-width: 767px) {
+  .sd-pipeline {
+    flex-wrap: wrap;
+    row-gap: 10px;
+    padding: 20px;
+  }
+}
+
+/* The Node (Pill) */
+.sd-pipeline-node {
+  background: var(--surface-2);
+  border: 1px solid var(--border-hairline);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink-4);
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 4px 12px rgba(13, 11, 9, 0.4);
+  animation: nodeIlluminate 4s infinite;
+  will-change: color, border-color, box-shadow;
+}
+
+/* The Connecting Wire */
+.sd-pipeline-wire {
+  width: 24px;
+  height: 2px;
+  background: var(--surface-2);
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  margin: 0 -4px;
+}
+
+/* The Glowing Data Pulse */
+.sd-pipeline-pulse {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, hsl(var(--card-hue)), transparent);
+  animation: wirePulse 4s infinite linear;
+  will-change: transform;
+}
+
+@keyframes wirePulse {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  10% {
+    transform: translateX(100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes nodeIlluminate {
+
+  0%,
+  100% {
+    color: var(--ink-4);
+    border-color: var(--border-hairline);
+    box-shadow: 0 4px 12px rgba(13, 11, 9, 0.4);
+  }
+
+  10% {
+    color: var(--ink-0);
+    border-color: hsl(var(--card-hue));
+    box-shadow: 0 0 12px hsla(var(--card-hue), 0.3), 0 4px 12px rgba(13, 11, 9, 0.4);
+  }
+
+  25% {
+    color: var(--ink-4);
+    border-color: var(--border-hairline);
+    box-shadow: 0 4px 12px rgba(13, 11, 9, 0.4);
+  }
+}
+
+/* Generic placeholder */
+.sd-placeholder {
+  position: absolute;
+  inset: 3px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sd-placeholder-label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: rgba(201, 168, 82, 0.10);
+}
+
+/* -- Shared text styles (reused by the case-study stage) ------- */
+.sd-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+}
+
+.sd-tag {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--ink-4);
+  background: var(--surface-2);
+  border: 1px solid var(--border-hairline);
+  border-radius: 4px;
+  padding: 3px 8px;
+  transition: color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Hover/focus lights the tag in its own project's accent hue
+   (--card-hue cascades from the .cs-slide). Subtle, never neon. */
+@media (hover: hover) and (pointer: fine) {
+  .sd-tag:hover {
+    color: var(--ink-1);
+    border-color: hsl(var(--card-hue, 210, 80%, 56%));
+    box-shadow: 0 0 12px hsla(var(--card-hue, 210, 80%, 56%), 0.18);
+  }
+}
+
+/* Tap-toggled glow (mobile/touch - applied via JS only when hover is
+   unavailable; mirrors the desktop :hover look). */
+.sd-tag.is-glow {
+  color: var(--ink-1);
+  border-color: hsl(var(--card-hue, 210, 80%, 56%));
+  box-shadow: 0 0 12px hsla(var(--card-hue, 210, 80%, 56%), 0.18);
+}
+
+@media (hover: none) {
+  .sd-tag { cursor: pointer; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sd-tag { transition: none; }
+}
+
+.sd-card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+  transition: color var(--t-fast);
+}
+
+.sd-card-link svg {
+  width: 12px;
+  height: 12px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sd-card-link:hover {
+    color: var(--accent);
+  }
+}
+
+/* -- Outro - centers the CTA and supplies the runway for boundary 0.
+   The CRT wipe begins when the outro CTA block's bottom edge crosses
+   viewport center, then completes as the Building chapter reaches the
+   viewport top. */
+.sd-outro {
+  position: relative;
+  z-index: 1;
+  background: var(--surface-0);
+}
+
+@media (min-width: 768px) {
+  .sd-outro {
+    min-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+
+/* -- CTA ------------------------------------------------------- */
+.sd-cta {
+  position: relative;
+  z-index: 1;
+  background: var(--surface-0);
+  padding-top: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding-left: 48px;
+  padding-right: 48px;
+}
+
+.sd-cta p {
+  font-family: var(--font-instrument), Georgia, serif;
+  font-style: italic;
+  font-size: 21px;
+  letter-spacing: 0.005em;
+  color: var(--ink-2);
+}
+
+@media (max-width: 767px) {
+  .sd-cta {
+    flex-direction: column;
+    align-items: flex-start;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+/* --------------------------------------------------------------
+   LIGHTBOX - portalled to <body>, so a real viewport-fixed overlay
+   (the .stack-section transform can't reach it here).
+   -------------------------------------------------------------- */
+.cs-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4vh 4vw;
+  background: rgba(13, 11, 9, 0.86);
+  backdrop-filter: blur(6px);
+  animation: csLbIn 0.25s ease;
+}
+
+@keyframes csLbIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.cs-lightbox-stage {
+  position: relative;
+  max-width: 92vw;
+  max-height: 88vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cs-lightbox-img {
+  max-width: 92vw;
+  max-height: 82vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 0.5px solid var(--border-hairline);
+  box-shadow: 0 30px 80px rgba(13, 11, 9, 0.6);
+  transform-origin: center center;
+  will-change: transform;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Zoom affordances. touch-action:none only once zoomed, so an un-zoomed
+   lightbox still scrolls//pinches natively; cursor communicates pan. */
+.cs-lightbox-stage.is-zoomed {
+  touch-action: none;
+  cursor: grab;
+  overflow: hidden;
+}
+
+.cs-lightbox-stage.is-zoomed.is-dragging {
+  cursor: grabbing;
+}
+
+.cs-lightbox-stage:not(.is-zoomed) {
+  cursor: zoom-in;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-lightbox-img {
+    transition: none !important;
+  }
+}
+
+.cs-lightbox-close {
+  position: fixed;
+  top: 24px;
+  right: 28px;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--ink-2);
+  background: rgba(13, 11, 9, 0.6);
+  border: 0.5px solid var(--border-hairline);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.cs-lightbox-close:hover {
+  color: var(--ink-1);
+  border-color: hsl(var(--card-hue, 210, 80%, 56%));
+}
+
+.cs-lightbox-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--ink-1);
+  background: rgba(13, 11, 9, 0.55);
+  border: 0.5px solid var(--border-hairline);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.cs-lightbox-arrow:hover {
+  background: hsl(var(--card-hue) / 0.25);
+  border-color: hsl(var(--card-hue));
+}
+
+.cs-lightbox-prev { left: -64px; }
+.cs-lightbox-next { right: -64px; }
+
+@media (max-width: 767px) {
+  .cs-lightbox-prev { left: 8px; }
+  .cs-lightbox-next { right: 8px; }
+}
+
+.cs-lightbox-caption {
+  position: absolute;
+  bottom: -30px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+
+.cs-lightbox-dots {
+  position: absolute;
+  bottom: -52px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 7px;
+}
+
+/* -- Reduced motion override ----------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  /* No pin / scrub: slides flow as a stack and chrome that only makes
+     sense while scrubbing (ghost numeral, counter, progress) is hidden. */
+  .cs-text {
+    transform: none !important;
+  }
+
+  .cs-ghost,
+  .cs-counter,
+  .cs-progress {
+    display: none;
+  }
+}
+
+/* ============================================================
+   REDUCED MOTION - mandatory accessibility
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   HERO 3D LAYER -- full-viewport sticky canvas background
+   Sits behind the text (z-index 0). Negative margin-bottom
+   ensures it does not push the hero-sticky content down.
+   Hidden on mobile to keep layout clean.
+   ============================================================ */
+.hero-3d-layer {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+  /* Own, stable GPU layer + compositing isolation so the nav's
+     backdrop-filter re-sampling this moving canvas can't force a
+     synchronised re-composite (the laptop jitter). */
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  isolation: isolate;
+  /* margin-bottom not needed - position:fixed is out of document flow */
+}
+
+/* Atmospheric depth - a gold pool low-left and a faint cool-blue orb
+   upper-left, painted BEHIND the transparent canvas so the laptop mesh
+   always sits above it (never tinted) and the glow fades out with the
+   layer at the projects handoff. Desktop only (layer is hidden < 900px). */
+.hero-3d-layer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 46% 44% at 12% 86%, rgba(var(--accent-rgb), 0.09), transparent 66%),
+    radial-gradient(ellipse 40% 40% at 22% 30%, rgba(143, 168, 196, 0.05), transparent 72%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-3d-layer::before {
+    will-change: transform;
+    animation: heroAtmoDrift 26s var(--ease-in-out-expo) infinite alternate;
+  }
+}
+
+@media (min-width: 900px) {
+  .hero-3d-layer {
+    display: block;
+  }
+}
+
+/* ============================================================
+   COMET CARD - Perspective tilt card (Perplexity Comet style)
+   Architecture: wrap -> shell (outer bezel) -> core (inner bezel)
+   Motion: RAF lerp via inline transform on .comet-card-wrap
+   ============================================================ */
+
+/* -- Outermost wrapper: owns the perspective transform -- */
+.comet-card-wrap {
+  /* transform is applied via JS - keep GPU on this layer */
+  will-change: transform;
+  transform-style: preserve-3d;
+  /* Smooth snap back when JS resets to identity */
+  transition: transform 600ms cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: default;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Honour system motion preference - freeze the card flat */
+@media (prefers-reduced-motion: reduce) {
+  .comet-card-wrap {
+    transform: none !important;
+    will-change: auto;
+  }
+}
+
+/* -- Outer shell: 1 px glass border + ambient glow -- */
+.comet-card-shell {
+  width: 100%;
+  height: 100%;
+  background: rgba(201, 168, 82, 0.028);
+  border: 1px solid var(--border-hairline);
+  border-radius: 18px;
+  padding: 3px;
+  box-shadow:
+    0 1px 0 rgba(201, 168, 82, 0.06) inset,
+    /* top edge refraction */
+    var(--shadow-card);
+  overflow: hidden;
+  transition:
+    border-color 300ms var(--ease-out-expo),
+    box-shadow 300ms var(--ease-out-expo);
+}
+
+.comet-card-wrap:hover .comet-card-shell {
+  border-color: var(--border-subtle);
+  box-shadow:
+    0 1px 0 rgba(201, 168, 82, 0.09) inset,
+    var(--shadow-hover);
+}
+
+/* -- Inner core: OLED black pane, inner refraction on top edge -- */
+.comet-card-core {
+  width: 100%;
+  height: 100%;
+  background: var(--surface-1);
+  /* #0a0a0a */
+  border-radius: calc(18px - 3px);
+  /* concentric curve math */
+  box-shadow: inset 0 1px 0 var(--edge-top);
+  /* 1 px inner refraction */
+  overflow: hidden;
+  position: relative;
+}
+
+/* ============================================================
+   EDITORIAL HEADER SYSTEM
+   Oversized asymmetric display headings with serif-italic
+   accents - replaces the tiny mono section labels in the
+   Projects and About sections.
+   ============================================================ */
+.ed-header {
+  margin-bottom: 88px;
+}
+
+@media (max-width: 767px) {
+  .ed-header {
+    margin-bottom: 56px;
+  }
+}
+
+.ed-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--border-hairline);
+  padding-bottom: 16px;
+}
+
+.ed-eyebrow {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+}
+
+.ed-meta {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.ed-heading {
+  font-family: var(--font-jakarta), sans-serif;
+  font-size: clamp(44px, 7vw, 86px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.98;
+  color: var(--ink-0);
+  text-wrap: balance;
+}
+
+/* Serif italic counterpoint - the single most editorial gesture */
+.ed-heading em {
+  font-family: var(--font-instrument), Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.05em;
+  letter-spacing: -0.01em;
+  color: var(--accent);
+  margin-right: 0.06em;
+}
+
+/* Asymmetric shove - heading steps off the left margin grid */
+.ed-heading--indent {
+  margin-left: clamp(0px, 9vw, 150px);
+}
+
+@media (max-width: 767px) {
+  .ed-heading--indent {
+    margin-left: 0;
+  }
+}
+
+/* Medium variant - for headers living inside a split column */
+.ed-heading--md {
+  font-size: clamp(34px, 4.2vw, 56px);
+}
+
+/* ============================================================
+   GLASS PANEL - project text card on obsidian ground
+   ============================================================ */
+.glass-panel {
+  position: relative;
+  height: 100%;
+  background: rgba(22, 19, 16, 0.88);
+  border: 1px solid var(--border-hairline);
+  border-radius: 18px;
+  padding: 44px 40px 40px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 var(--edge-top),
+    0 1px 2px rgba(13, 11, 9, 0.6),
+    0 8px 32px rgba(13, 11, 9, 0.4);
+}
+
+@media (max-width: 767px) {
+  .glass-panel {
+    padding: 32px 24px 28px;
+  }
+}
+
+/* Ghost folio numeral - oversized magazine-style index in the
+   top-right corner of each project text panel */
+.sd-index-ghost {
+  position: absolute;
+  top: 14px;
+  right: 22px;
+  font-size: clamp(56px, 6vw, 96px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(201, 168, 82, 0.13);
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+/* Keep real panel content above the ghost numeral
+   (accent line excluded - it positions itself absolutely) */
+.glass-panel>*:not(.sd-index-ghost):not(.sd-card-accent) {
+  position: relative;
+  z-index: 1;
+}
+
+
+/* ============================================================
+   STACK TRANSITIONS - "String-Tune" scroll choreography
+   Each post-hero section is a sheet. The outgoing section pins,
+   scales back under a darkening veil, while the incoming sheet
+   slides over it with rounded corners that flatten on arrival.
+   All scrub-tied: scrolling up rewinds every frame.
+   ============================================================ */
+.stack-section {
+  position: relative;
+  background: var(--surface-0);
+}
+
+/* Dimming veil - sits above the section's content, faded in by
+   the boundary timeline as the next sheet covers it */
+.stack-veil {
+  position: absolute;
+  inset: 0;
+  background: #0D0B09;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
+/* -- Skills section: tighter vertical rhythm + shifted up -- */
+/* Same runway as base .sp-runway (360vh): reveal spreads over 240vh (default)
+   leaving ~120vh settled hold for the boundary slide-over. */
+.sp-runway.skills-spatial {
+  height: 360vh;
+}
+
+.skills-spatial .sp-sticky {
+  padding-top: clamp(48px, 5vh, 72px);
+}
+
+.skills-spatial .ed-header-row {
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+}
+
+/* ============================================================
+   CRT COLLAPSE - Projects -> Building boundary
+   A fixed, full-viewport layer. A champagne field squashes scaleY -> 0
+   into a blinding blade across a dark void, then pinches scaleX -> 0
+   inward from both sides and winks out, revealing the Building bento.
+   All motion is driven (scaleY / scaleX / opacity / brightness) by
+   StackTransitions on the boundary scrub - these are just the static
+   styles. Desktop only: never injected on mobile / reduced-motion.
+   ============================================================ */
+.crt-fx {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  /* sits above the stacked sections (z 1-5) + veils (z 50),
+     below the floating nav (z 100) and grain (z 9999) */
+  pointer-events: none;
+  contain: strict;
+}
+
+/* dark void that masks the outgoing deck, then clears for the reveal */
+.crt-fx__void {
+  position: absolute;
+  inset: 0;
+  background: #0D0B09;
+  opacity: 0;
+  will-change: opacity;
+}
+
+/* champagne concentrated at the vertical centre with a white-hot core -
+   squashing scaleY collapses this into the blade; pinching scaleX winks it */
+.crt-fx__blade {
+  position: absolute;
+  inset: 0;
+  transform-origin: center center;
+  opacity: 0;
+  background: linear-gradient(180deg,
+      transparent 0%,
+      rgba(var(--accent-rgb), 0) 42%,
+      rgba(var(--accent-rgb), 0.85) 48.5%,
+      #FAF5EE 50%,
+      rgba(var(--accent-rgb), 0.85) 51.5%,
+      rgba(var(--accent-rgb), 0) 58%,
+      transparent 100%);
+  box-shadow: 0 0 60px 12px rgba(var(--accent-rgb), 0.40);
+  will-change: transform, opacity, filter;
+}
+
+/* ============================================================
+   BURN AWAY - About -> Contact boundary (R3F overlay)
+   A fixed, full-viewport WebGL canvas (BurnTransition) that
+   burns the outgoing surface off to reveal a fully-painted,
+   dead-still Contact beneath. Mounted only while the boundary
+   is in view; uProgress is scrubbed by StackTransitions.
+   Critical positioning is also set inline on the <Canvas> so
+   it overrides R3F's default container style - this block
+   documents the slot and is the styling hook for later polish.
+   Same z-slot as .crt-fx: above sheets (z 1-5) + veils (z 50),
+   below the floating nav (z 100) and grain (z 9999).
+   ============================================================ */
+/* Contact burn runway (desktop only). The 200vh track gives the burn
+   100vh of sticky travel; the inner .contact-sticky holds Contact
+   dead-still at top:0 while the fire scrubs away over it. Sticky
+   rather than a ScrollTrigger pin - a pin engaging under Lenis momentum
+   at the page bottom dead-locks the main thread. On mobile the wrapper
+   is display:contents (a no-op) so the section flows natively. */
+.contact-runway {
+  position: relative;
+}
+
+/* -- About -> Contact burn choreography (desktop + full motion only) --
+   The About runway gains a 100vh dead-still tail (350vh total: 150vh
+   word-reveal + 100vh hold + 100vh burn) and the Contact runway is
+   pulled up underneath it by 200vh. During the entire burn BOTH
+   stickies sit overlapped at top:0 - About (z6, background moved onto
+   its sticky) above, Contact (z5) hidden beneath - and the shader +
+   clip-path wipe swap them in place with zero Y translation.
+   Gated on the same media as StackTransitions, so mobile and
+   reduced-motion keep the plain stacked flow with no overlap. */
+.stack-section--about {
+  background: transparent;
+}
+
+.stack-section--about .about-sticky {
+  background: var(--surface-0);
+}
+
+.about-runway {
+  height: 250vh;
+}
+
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  .about-runway {
+    height: 350vh;
+  }
+
+  .contact-runway {
+    margin-top: -200vh;
+  }
+
+  /* ── Pin-free boundary overlap (CLS fix) ──────────────────────────────
+     Boundaries 1 & 2 dropped their GSAP pins (pinSpacing:false reflowed the
+     page ~100vh and was the dominant CLS source). Instead the incoming sheet
+     is pulled up one viewport so its sticky inner overlaps the still-held
+     .sp-sticky of the outgoing section for the 100vh transition window the
+     scrub timeline maps — same mechanism as .contact-runway above. Gated to
+     desktop + full motion so mobile / reduced-motion keep plain stacked flow.
+     NOTE: -100vh is a starting value; tune against the in-browser CLS meter. */
+  .stack-section--building {
+    margin-top: -100vh;
+  }
+
+  .stack-section--skills {
+    margin-top: -100vh;
+  }
+
+  .stack-section--about {
+    margin-top: -100vh;
+  }
+}
+
+.contact-sticky {
+  display: contents;
+}
+
+/* Motion-gated like the overlap above: with reduced motion there is no
+   burn, so the runway/sticky would only add a dead 100vh frozen hold -
+   fall through to natural flow instead. */
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  .contact-runway {
+    height: 200vh;
+  }
+
+  .contact-sticky {
+    display: block;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+}
+
+/* ============================================================
+   SCROLL GLYPH-STAMP - About heading entry (ScrollScrambleText)
+   The heading stamps through raw terminal syntax and freezes into
+   its final state as the section enters, a champagne hairline tick
+   blinking beside it like a metronome. Layout-stable: a hidden sizer
+   reserves the final width so glyph jitter never reflows the line.
+   ============================================================ */
+.scramble {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(14px, 1.2vw, 20px);
+}
+
+/* 50-2px champagne hairline - the mechanical metronome */
+.scramble-tick {
+  flex: 0 0 auto;
+  width: 50px;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0.85;
+  transform-origin: left center;
+  transition: opacity 0.35s ease;
+}
+
+/* rapid mechanical blink while the text is stamping in */
+.scramble-tick.is-stamping {
+  animation: scramble-tick-blink 0.11s steps(1, end) infinite;
+}
+
+@keyframes scramble-tick-blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.18;
+  }
+}
+
+.scramble-stage {
+  position: relative;
+  display: inline-block;
+}
+
+/* sizer holds the final width in flow but stays invisible */
+.scramble-sizer {
+  visibility: hidden;
+}
+
+/* live copy is stacked over the sizer so glyph jitter can't reflow */
+.scramble-live {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+}
+
+/* accessible label for the heading text, visually hidden */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* No stamp on mobile / reduced-motion - heading + tick sit solid */
+@media (max-width: 768px),
+(prefers-reduced-motion: reduce) {
+  .scramble-tick {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+/* ============================================================
+   Detection-reticle cursor (CursorReticle.tsx)
+   Four autofocus-style corner brackets that follow the pointer
+   and expand to frame interactive targets with a confidence
+   label, YOLO-detection style.
+   ============================================================ */
+
+/* Hide the native cursor only while the reticle is actually mounted
+   (JS adds .reticle-on under the same fine-pointer + motion gate); the
+   media query is a second fence so touch devices are never affected. */
+@media (hover: hover) and (pointer: fine) {
+
+  html.reticle-on,
+  html.reticle-on * {
+    cursor: none !important;
+  }
+}
+
+/* Root is a zero-size fixed anchor; the bracket box and the pointer dot are
+   independent transform layers inside it. The box frames the hovered zone,
+   the dot always marks the exact live pointer position. */
+.cursor-reticle {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: var(--z-cursor);
+  opacity: 0;
+  transition: opacity 160ms var(--ease-out-expo);
+}
+
+.cursor-reticle.is-visible {
+  opacity: 1;
+}
+
+.cr-box {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  will-change: transform, width, height;
+}
+
+/* Precision layer - true pointer position, independent of the box state */
+.cr-dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  will-change: transform;
+}
+
+/* Corner brackets - thin champagne L-shapes, quiet at rest */
+.cr-corner {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border: 0 solid var(--accent);
+  transition: width 150ms var(--ease-out-expo), height 150ms var(--ease-out-expo);
+}
+
+.cr-tl {
+  top: 0;
+  left: 0;
+  border-top-width: 1px;
+  border-left-width: 1px;
+}
+
+.cr-tr {
+  top: 0;
+  right: 0;
+  border-top-width: 1px;
+  border-right-width: 1px;
+}
+
+.cr-bl {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: 1px;
+  border-left-width: 1px;
+}
+
+.cr-br {
+  bottom: 0;
+  right: 0;
+  border-bottom-width: 1px;
+  border-right-width: 1px;
+}
+
+/* Locked onto a target: longer bracket arms */
+.cursor-reticle.is-locked .cr-corner {
+  width: 12px;
+  height: 12px;
+}
+
+/* Confidence readout - sits on the top edge like a detection label */
+.cr-label {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 0;
+  font-family: var(--font-jetbrains), 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  color: var(--accent);
+  background: rgba(13, 11, 9, 0.72);
+  border: 1px solid var(--accent-glow);
+  padding: 2px 6px;
+  opacity: 0;
+  transition: opacity 150ms var(--ease-out-expo);
+}
+
+.cursor-reticle.is-locked .cr-label {
+  opacity: 1;
+}
+
+/* Tall targets (project cards, gravity pit): label tucks inside the frame's
+   top-left so it never overlaps page content outside the box */
+.cursor-reticle.is-inside .cr-label {
+  bottom: auto;
+  top: 5px;
+  left: 5px;
+}
+
+/* Small targets near the viewport top (fixed nav): label flips below the box
+   instead of clipping offscreen */
+.cursor-reticle.is-below .cr-label {
+  bottom: auto;
+  top: calc(100% + 5px);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   404 — Detection Reticle
+   Full-viewport composition echoing CursorReticle's lock-on frame.
+   CSS owns the entrance (backwards fill-mode: resting styles are the
+   fully-visible end state, keyframes only supply the hidden start) so the
+   page renders complete with no motion and no JS. NotFoundReticle.tsx
+   layers a label decode on top of the already-final server-rendered text.
+   ───────────────────────────────────────────────────────────── */
+
+.nf-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-0);
+  padding: 48px 24px;
+}
+
+.nf-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  max-width: 640px;
+  width: 100%;
+  padding: 64px 40px;
+  text-align: center;
+}
+
+.nf-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border: 0 solid var(--ink-3);
+  opacity: 0.4;
+}
+
+.nf-corner-tl {
+  top: 0;
+  left: 0;
+  border-top-width: 1px;
+  border-left-width: 1px;
+}
+
+.nf-corner-tr {
+  top: 0;
+  right: 0;
+  border-top-width: 1px;
+  border-right-width: 1px;
+}
+
+.nf-corner-bl {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: 1px;
+  border-left-width: 1px;
+}
+
+.nf-corner-br {
+  bottom: 0;
+  right: 0;
+  border-bottom-width: 1px;
+  border-right-width: 1px;
+}
+
+.nf-label {
+  font-family: var(--font-jetbrains), 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.nf-numeral {
+  margin: 0;
+  font-family: var(--font-instrument), Georgia, serif;
+  font-size: clamp(96px, 18vw, 240px);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  color: var(--ink-1);
+}
+
+.nf-sub {
+  margin: 0;
+  font-family: var(--font-instrument), Georgia, serif;
+  font-style: italic;
+  font-size: clamp(16px, 2.2vw, 22px);
+  color: var(--ink-2);
+}
+
+.nf-link {
+  margin-top: 12px;
+  font-family: var(--font-jetbrains), 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  text-decoration: none;
+  transition: color var(--t-fast);
+}
+
+.nf-link:hover,
+.nf-link:focus-visible {
+  color: var(--ink-1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .nf-label,
+  .nf-numeral,
+  .nf-sub,
+  .nf-link {
+    animation-duration: 700ms;
+    animation-timing-function: var(--ease-out-expo);
+    animation-fill-mode: backwards;
+  }
+
+  .nf-label {
+    animation-name: nf-rise;
+    animation-delay: 60ms;
+  }
+
+  .nf-numeral {
+    animation-name: nf-rise;
+    animation-delay: 140ms;
+  }
+
+  .nf-sub {
+    animation-name: nf-rise;
+    animation-delay: 240ms;
+  }
+
+  .nf-link {
+    animation-name: nf-rise;
+    animation-delay: 340ms;
+  }
+}
+
+@keyframes nf-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}

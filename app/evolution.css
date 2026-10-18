@@ -1,0 +1,1376 @@
+/*
+ * Cinematic restoration layer
+ * ---------------------------
+ * globals.css remains the authored visual system. This file owns the
+ * phase geometry, fail-open enhancement contract, short-desktop fitting,
+ * and invisible quality adaptations introduced by the restoration.
+ */
+
+:root {
+  --runway-hero: 300svh;
+  --runway-featured-projects: 345svh; /* keep in sync with runwaySvh in lib/chapterPhases.ts */
+  --runway-building: 320svh;
+  --runway-skills: 310svh;
+  --runway-about: 330svh;
+  --runway-contact: 200svh;
+  --overlap-chapter: -100svh;
+  --overlap-contact: -200svh;
+  /* Boundary 0 only — see the .stack-section--building override below for
+     the arithmetic behind this value. */
+  --overlap-building: -55svh;
+  --nav-clearance: 112px;
+  --chapter-bottom-safe: 24px;
+}
+
+.skip-link {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: calc(var(--z-preloader) + 2);
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--ink-0);
+  color: var(--surface-0);
+  font: 600 13px/1 var(--font-jakarta), sans-serif;
+  transform: translateY(-180%);
+  transition: transform 180ms var(--ease-out-expo);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.terminal-highlight {
+  display: inline;
+  padding: 0 0.11em 0.04em;
+  margin-inline: 0.035em;
+  color: var(--surface-0);
+  background-image: linear-gradient(
+    var(--terminal-highlight-color, var(--accent)),
+    var(--terminal-highlight-color, var(--accent))
+  );
+  background-repeat: no-repeat;
+  background-position: left 58%;
+  background-size: 100% 88%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* Original 62508ff scale and reading composition. */
+.hero-name-split {
+  max-width: 100%;
+  font-size: clamp(60px, 10.5vw, 112px);
+}
+
+.hero-text-col {
+  width: 100%;
+  max-width: min(660px, 50vw);
+}
+
+.hero-tagline,
+.hero-sub {
+  max-width: 100%;
+  text-wrap: pretty;
+}
+
+/* Simple straight-on laptop (user reference): no perspective, no rotation —
+   the screen sits dead-centered and the lid/deck planes can never diverge. */
+.hero-laptop-poster {
+  position: relative;
+  width: min(82vw, 520px);
+  aspect-ratio: 1.35 / 1;
+  margin: 24px auto 0;
+  filter: drop-shadow(0 26px 34px rgba(0, 0, 0, 0.45));
+  animation: poster-laptop-in 1s var(--ease-out-expo) both;
+}
+
+/* Lid: near-black slim bezel with a hairline aluminum rim; the screen
+   fills almost the entire lid. */
+.hero-laptop-poster__lid {
+  position: absolute;
+  inset: 2% 7% 12%;
+  padding: 1.7%;
+  border: 1px solid rgba(196, 196, 194, 0.5);
+  border-radius: 16px 16px 6px 6px;
+  background: linear-gradient(178deg, #17171a, #0b0b0d 70%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.85);
+}
+
+.hero-laptop-poster__screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 10px 10px 3px 3px;
+  background: var(--surface-1);
+}
+
+.hero-laptop-poster__screen img {
+  object-fit: cover;
+  /* The title card is 16:10 with its headline on the left half; the lid
+     is squarer, so a center crop beheads the text — anchor left. */
+  object-position: left center;
+}
+
+/* Deck: one thin aluminum slab, wider than the lid, centered thumb-scoop
+   on its top lip, rounded lower corners. Its top tucks 1% behind the lid
+   (z-index -1) so the hinge line is seamless. */
+.hero-laptop-poster__base {
+  position: absolute;
+  z-index: -1;
+  left: 0;
+  right: 0;
+  bottom: 6%;
+  height: 7%;
+  border-radius: 2px 2px 12px 12px;
+  background:
+    radial-gradient(ellipse 12% 60% at 50% 0%, rgba(0, 0, 0, 0.38), transparent 72%),
+    linear-gradient(180deg, #ececea 0%, #cfcfcd 40%, #989896 86%, #767674 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 14px 22px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes poster-laptop-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 22px, 0);
+  }
+  to {
+    opacity: 0.92;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/*
+ * One fixed canvas remains mounted throughout the story. The hero timeline
+ * only changes opacity; the About burn raises the same stage over the sheets.
+ */
+.visual-stage,
+.hero-3d-layer {
+  display: block;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100svh;
+  z-index: 0;
+  pointer-events: none;
+  transform: translateZ(0);
+  isolation: isolate;
+}
+
+html[data-burn-active="true"] .visual-stage,
+html[data-burn-active="true"] .hero-3d-layer {
+  display: block !important;
+  opacity: 1 !important;
+  z-index: 60 !important;
+}
+
+html[data-burn-active="true"] .hero-3d-layer::before {
+  opacity: 0 !important;
+  animation: none !important;
+}
+
+/* Featured proof and metric hierarchy. */
+.cs-lead-metric,
+.cs-metric {
+  display: block;
+  margin: 8px 0 12px;
+  color: var(--accent);
+  font: 600 clamp(12px, 1.05vw, 15px)/1.35 var(--font-jetbrains), monospace;
+  text-wrap: pretty;
+}
+
+.cs-proof {
+  display: grid;
+  gap: 7px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+  max-width: 54ch;
+}
+
+.cs-proof li {
+  position: relative;
+  padding-left: 17px;
+  color: var(--ink-2);
+  font: 500 11px/1.4 var(--font-jetbrains), monospace;
+}
+
+.cs-proof li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 7px;
+  height: 1px;
+  background: var(--accent);
+}
+
+/* Secondary projects remain a concise closing beat before the real CRT exit. */
+.more-work {
+  position: relative;
+  z-index: 3;
+  isolation: isolate;
+  padding: clamp(88px, 10vw, 144px) 0 24px;
+  background: var(--surface-0);
+}
+
+.more-work-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 24px;
+}
+
+.more-work-header h3 {
+  margin: 0;
+  color: var(--ink-1);
+  font: italic 400 clamp(30px, 4vw, 56px)/0.95 var(--font-instrument), Georgia, serif;
+  letter-spacing: -0.035em;
+}
+
+.more-work-list {
+  border-bottom: 1px solid var(--border-default);
+}
+
+/* Each row is a click-toggled disclosure: a full-width button header
+   over a panel with the full description, every link, and an image
+   strip. Click, not hover — the panel is reference content, and hover
+   made the rows fire by accident while scrolling. */
+.more-work-item {
+  position: relative;
+  border-top: 1px solid var(--border-default);
+}
+
+/* Positioned siblings paint in DOM order, so without this the NEXT row
+   would cover an expanded row's flyout panel. */
+.more-work-item.is-expanded {
+  z-index: 5;
+}
+
+.more-work-row {
+  display: grid;
+  grid-template-columns: 48px minmax(200px, 0.72fr) minmax(0, 1.45fr) 24px;
+  align-items: center;
+  gap: 28px;
+  min-height: 116px;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.more-work-title {
+  display: block;
+  min-width: 0;
+}
+
+.more-work-chevron {
+  justify-self: end;
+  color: var(--ink-3);
+  font-size: 22px;
+  font-weight: 300;
+  line-height: 1;
+  transition: transform 0.3s var(--ease-out-expo), color 0.3s var(--ease-out-expo);
+}
+
+/* Now that click is the ONLY way in, the row has to advertise itself.
+   The chevron lighting up on hover is the whole affordance — without it
+   a first-time user has no signal that the row does anything. */
+.more-work-row:hover .more-work-chevron,
+.more-work-row:focus-visible .more-work-chevron {
+  color: var(--accent);
+}
+
+.more-work-item.is-expanded .more-work-chevron {
+  transform: rotate(45deg);
+  color: var(--accent);
+}
+
+/* Collapse/expand via grid-rows so height animates without measuring.
+   visibility keeps the collapsed panel's links out of the tab order.
+
+   --ease-drawer, not --ease-out-expo: expo covers ~60% of its travel in
+   the first 15% of the duration, which is right for a 4-20px hover lift
+   and a snap on ~390px of panel. This is the curve built for drawer
+   travel. Touch still animates real height here, so it keeps the longer
+   duration; the fine-pointer flyout below has no height to travel. */
+.more-work-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows 0.42s var(--ease-drawer),
+    opacity 0.3s var(--ease-drawer),
+    visibility 0s linear 0.42s;
+}
+
+.more-work-item.is-expanded .more-work-panel {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    grid-template-rows 0.42s var(--ease-drawer),
+    opacity 0.3s var(--ease-drawer) 0.06s,
+    visibility 0s;
+}
+
+.more-work-panel-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Fine-pointer flyout ──────────────────────────────────────────────
+   On hover-capable pointers the panel floats OUT OF FLOW instead of
+   pushing the page. This is load-bearing, not cosmetic. In flow it grew
+   each row 117px → 511px, which moved .sd-outro — and therefore the
+   boundary-0 CRT trigger anchored to .sd-cta — by ~394px while scrollY
+   stayed put, leaving ScrollTrigger's cached start/end stale until a
+   deferred refresh landed. The CRT then ran against a start position
+   that no longer existed. Out of flow the document height is constant,
+   so no trigger can go stale and no refresh is needed at all.
+
+   Touch keeps the in-flow accordion above: an overlay taller than a
+   phone viewport would be strictly worse there.
+
+   A floating layer has to LOOK like one. The first pass gave the panel
+   background: var(--surface-0) — byte-identical to the page behind it —
+   and a pure-black shadow that is invisible on a #0D0B09 ground, so it
+   read as loose text in a void rather than a panel. On a dark UI
+   elevation comes from lightening the raised surface, not from casting
+   a darker shadow. */
+@media (hover: hover) and (pointer: fine) {
+  /* Runway so the LAST row's panel clears the outro CTA rather than
+     covering it. Sized for the tallest panel (394px) plus breathing
+     room, minus the 262px that already exists between the list and the
+     CTA. Everything below simply starts this much later in the scroll —
+     the CRT window length and its relationship to Building are
+     unchanged. */
+  .more-work {
+    padding-bottom: 176px;
+  }
+
+  .more-work-panel {
+    position: absolute;
+    top: 100%;
+    /* Overhang the row by exactly the inner padding, so the card gets
+       breathing room while its CONTENT stays flush with the row's left
+       edge (the index column). Stays inside .container's own padding. */
+    left: -20px;
+    right: -20px;
+    z-index: 4;
+    /* display:block retires the grid-rows mechanism above */
+    display: block;
+    /* Raised surface + hairline, so the edge is readable against the
+       page even before the shadow registers. */
+    background: var(--surface-1);
+    border: 1px solid var(--border-subtle);
+    border-top-color: transparent;
+    border-radius: 0 0 14px 14px;
+    /* Warm-tinted rather than pure black — a black shadow on a
+       near-black ground renders as nothing. */
+    box-shadow:
+      0 1px 0 rgba(255, 246, 232, 0.05) inset,
+      0 30px 60px -24px rgba(0, 0, 0, 0.9),
+      0 8px 22px -12px rgba(20, 15, 8, 0.85);
+    transform: translate3d(0, -10px, 0);
+    pointer-events: none;
+    /* Out of flow, so its subtree can no longer dirty the rest of the
+       page — say so and let the engine skip it entirely while closed. */
+    contain: layout paint;
+    transition:
+      opacity 0.22s var(--ease-drawer),
+      transform 0.22s var(--ease-drawer),
+      visibility 0s linear 0.22s;
+  }
+
+  .more-work-item.is-expanded .more-work-panel {
+    transform: none;
+    pointer-events: auto;
+    will-change: opacity, transform;
+    transition:
+      opacity 0.32s var(--ease-drawer),
+      transform 0.32s var(--ease-drawer),
+      visibility 0s;
+  }
+
+  /* The clip existed only to hide the grid-rows collapse. The cap is
+     what keeps a 364px panel usable on a short laptop: at 639px tall
+     the row plus panel did not fit and the image strip fell below the
+     fold with no indication it was there. */
+  .more-work-panel-inner {
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: 56vh;
+    /* Bottom padding is not cosmetic: the interior stagger below starts
+       each child 8px lower, which counts toward scrollable overflow and
+       would flash a scrollbar for the length of every open. The padding
+       absorbs that travel. */
+    padding: 14px 20px 12px;
+    scrollbar-width: thin;
+  }
+
+  /* Interior stagger. Everything used to arrive on one frame, which is
+     what made the panel land as a slab rather than open. Copy leads,
+     the image strip trails. Collapse is deliberately un-staggered — on
+     the way out the whole panel should leave at once. */
+  .more-work-panel-inner > * {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+    transition:
+      opacity 0.2s var(--ease-drawer),
+      transform 0.2s var(--ease-drawer);
+  }
+
+  .more-work-item.is-expanded .more-work-panel-inner > * {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 0.24s var(--ease-drawer),
+      transform 0.24s var(--ease-drawer);
+  }
+
+  .more-work-item.is-expanded .more-work-desc {
+    transition-delay: 0.06s;
+  }
+
+  .more-work-item.is-expanded .more-work-tech {
+    transition-delay: 0.085s;
+  }
+
+  .more-work-item.is-expanded .more-work-links {
+    transition-delay: 0.11s;
+  }
+
+  .more-work-item.is-expanded .more-work-strip {
+    transition-delay: 0.14s;
+  }
+}
+
+/* Deliberately placed AFTER both the base accordion and the flyout so it
+   out-ranks either on source order alone — no !important needed. The
+   staggered children matter as much as the panel: a transition-delay
+   left standing would hold them hidden after the panel had opened. */
+@media (prefers-reduced-motion: reduce) {
+  .more-work-panel,
+  .more-work-item.is-expanded .more-work-panel,
+  .more-work-panel-inner > *,
+  .more-work-item.is-expanded .more-work-panel-inner > *,
+  .more-work-chevron {
+    transition: none;
+    transition-delay: 0s;
+  }
+
+  .more-work-panel-inner > * {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Item-scoped to out-rank `.more-work-item p`'s italic serif */
+.more-work-item .more-work-desc {
+  max-width: 68ch;
+  margin: 4px 0 14px;
+  color: var(--ink-2);
+  font: 400 14px/1.65 var(--font-jakarta), sans-serif;
+}
+
+.more-work-item .more-work-tech {
+  margin: 0 0 18px;
+  color: var(--ink-3);
+  font: 500 11px/1.5 var(--font-jetbrains), monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.more-work-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  margin-bottom: 22px;
+}
+
+.more-work-strip {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 26px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Uniform tiles. Fixed width (not width:auto) is what keeps `sizes`
+   honest: the architecture diagrams run up to 7.2:1, so an auto width
+   rendered them ~1085px wide from a ~256px source. object-position
+   anchors left so a diagram shows its entry point, not a mid-slice. */
+.more-work-thumb {
+  flex: 0 0 auto;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 10px;
+  cursor: zoom-in;
+  line-height: 0;
+}
+
+.more-work-thumb:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.more-work-strip img {
+  width: 290px;
+  height: 128px;
+  object-fit: cover;
+  object-position: left center;
+  border-radius: 10px;
+  border: 1px solid var(--border-hairline);
+  background: var(--surface-1);
+  transition: border-color 0.25s var(--ease-out-expo);
+}
+
+.more-work-thumb:hover img {
+  border-color: var(--border-subtle);
+}
+
+/* Overflow affordance — same tile height, deliberately not an image, so
+   it reads as "there is more" rather than as a fourth screenshot. Opens
+   the lightbox at the first image. */
+.more-work-more {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 118px;
+  height: 128px;
+  padding: 0;
+  border: 1px dashed var(--border-subtle);
+  border-radius: 10px;
+  background: var(--surface-1);
+  color: var(--ink-3);
+  cursor: pointer;
+  font: 600 10px/1.2 var(--font-jakarta), sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+
+.more-work-more:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.more-work-more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.more-work-more-count {
+  color: var(--ink-2);
+  font: 600 21px/1 var(--font-jetbrains), monospace;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.more-work-index {
+  color: var(--ink-4);
+  font-size: 11px;
+}
+
+.more-work-item h4 {
+  margin: 0 0 5px;
+  color: var(--ink-1);
+  font: 700 clamp(20px, 2vw, 28px)/1 var(--font-jakarta), sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.more-work-item p {
+  margin: 0;
+  color: var(--ink-3);
+  font: italic 400 14px/1.4 var(--font-instrument), Georgia, serif;
+}
+
+.more-work-item strong {
+  min-width: 0;
+  max-width: 58ch;
+  color: var(--accent);
+  font: 600 12px/1.4 var(--font-jetbrains), monospace;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.more-work-item a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--ink-2);
+  font: 600 12px/1 var(--font-jakarta), sans-serif;
+  white-space: nowrap;
+  transition: color var(--t-fast);
+}
+
+.more-work-item a:hover {
+  color: var(--accent);
+}
+
+.more-work-item a svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ------------------------------------------------------------------
+   Progressive enhancement contract
+   Natural, fully visible document flow is the default and failure state.
+   Sticky runways are enabled only after every controller has initialized.
+   ------------------------------------------------------------------ */
+.hero-runway,
+.sp-runway,
+.sp-runway.skills-spatial,
+.about-runway,
+.contact-runway,
+.cs-track {
+  height: auto;
+  min-height: 0;
+  margin-top: 0;
+}
+
+.hero-runway {
+  min-height: 100svh;
+}
+
+.hero-sticky,
+.sp-sticky,
+.about-sticky,
+.contact-sticky,
+.cs-viewport {
+  position: relative;
+  inset: auto;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.hero-sticky {
+  min-height: 100svh;
+}
+
+.contact-sticky {
+  display: block;
+}
+
+.stack-section--building,
+.stack-section--skills,
+.stack-section--about {
+  margin-top: 0;
+}
+
+.chapter-marker {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  pointer-events: none;
+}
+
+.cs-stagebox {
+  display: grid;
+  min-height: 0;
+  height: auto;
+  gap: clamp(72px, 10vw, 112px);
+}
+
+.cs-slide {
+  position: relative;
+  inset: auto;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+}
+
+.cs-progress,
+.cs-ghost {
+  display: none;
+}
+
+.sp-content,
+.sp-reveal,
+.about-split-container,
+.contact-links,
+.reveal-word {
+  opacity: 1;
+  transform: none;
+  clip-path: none;
+}
+
+html[data-motion-ready="false"] .name-part-1,
+html[data-motion-ready="false"] .name-part-2,
+html[data-motion-ready="failed"] .name-part-1,
+html[data-motion-ready="failed"] .name-part-2 {
+  transform: none !important;
+}
+
+html[data-motion-ready="false"] .sp-content,
+html[data-motion-ready="false"] .sp-reveal,
+html[data-motion-ready="false"] .about-split-container,
+html[data-motion-ready="false"] .contact-links,
+html[data-motion-ready="failed"] .sp-content,
+html[data-motion-ready="failed"] .sp-reveal,
+html[data-motion-ready="failed"] [data-chapter-heading],
+html[data-motion-ready="failed"] [data-chapter-body],
+html[data-motion-ready="failed"] .about-split-container,
+html[data-motion-ready="failed"] .about-terminal-wrap,
+html[data-motion-ready="failed"] .contact-links {
+  opacity: 1 !important;
+  transform: none !important;
+  clip-path: none !important;
+}
+
+html[data-motion-ready="failed"] .crt-fx {
+  display: none !important;
+}
+
+html[data-motion-ready="failed"] .contact-mask,
+html[data-motion-ready="failed"] .stack-veil {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+html[data-motion-ready="failed"] .stack-section,
+html[data-motion-ready="failed"] .sp-sticky,
+html[data-motion-ready="failed"] .about-sticky,
+html[data-motion-ready="failed"] .contact-sticky,
+html[data-motion-ready="failed"] .cs-viewport,
+html[data-motion-ready="failed"] .cs-slide {
+  position: relative !important;
+  inset: auto !important;
+  height: auto !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  clip-path: none !important;
+  pointer-events: auto !important;
+}
+
+/* Desktop story: no minimum-height or GPU gate. */
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  html[data-motion-ready="true"] .hero-runway {
+    height: var(--runway-hero);
+  }
+
+  html[data-motion-ready="true"] .hero-sticky {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  html[data-motion-ready="true"] .cs-track[data-scrub-ready="true"] {
+    height: var(--runway-featured-projects);
+  }
+
+  html[data-motion-ready="true"] .cs-track[data-scrub-ready="true"] .cs-viewport {
+    position: sticky;
+    inset-block-start: 0;
+    height: 100svh;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) 2px minmax(64px, 8svh);
+    row-gap: clamp(10px, 1.45svh, 16px);
+    justify-content: stretch;
+    justify-items: stretch;
+    overflow: hidden;
+    padding:
+      max(var(--nav-clearance), 108px)
+      clamp(32px, 3.35vw, 48px)
+      var(--chapter-bottom-safe);
+    align-content: stretch;
+  }
+
+  html[data-motion-ready="true"] .cs-track[data-scrub-ready="true"] .cs-topbar {
+    margin: 0;
+  }
+
+  html[data-motion-ready="true"] .cs-track[data-scrub-ready="true"] .cs-stagebox {
+    display: block;
+    position: relative;
+    min-height: 0;
+    height: 100%;
+    container-type: size;
+  }
+
+  html[data-motion-ready="true"] .cs-track[data-scrub-ready="true"] .cs-slide {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1.46fr) minmax(290px, 1fr);
+    gap: clamp(30px, 3.4vw, 56px);
+    align-items: center;
+  }
+
+  html[data-motion-ready="true"] .cs-track[data-scrub-ready="true"] .cs-visual-col {
+    height: 100%;
+    min-height: 0;
+    justify-content: center;
+  }
+
+  html[data-motion-ready="true"] .cs-track[data-scrub-ready="true"] .cs-visual-col > .comet-card-wrap {
+    width: min(100%, calc((100cqh - 34px) * 1.6));
+    height: auto;
+    aspect-ratio: 16 / 10;
+    align-self: center;
+  }
+
+  html[data-motion-ready="true"] .cs-track[data-scrub-ready="true"] .cs-visual {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+  }
+
+  html[data-motion-ready="true"] .cs-track[data-scrub-ready="true"] .cs-caption {
+    min-height: 20px;
+    gap: 0;
+  }
+
+  html[data-motion-ready="true"] .cs-track[data-scrub-ready="true"] .cs-text {
+    min-height: 0;
+    max-height: 100%;
+    justify-content: center;
+  }
+
+  html[data-motion-ready="true"] .cs-track[data-scrub-ready="true"] .cs-progress {
+    display: block;
+    margin: 0;
+    align-self: center;
+    overflow: visible;
+  }
+
+  .cs-progress-fill {
+    width: 100%;
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+
+  .cs-progress-knob {
+    left: 0;
+    transform: translate3d(-50%, 0, 0);
+  }
+
+  html[data-motion-ready="true"] .cs-track[data-scrub-ready="true"] .cs-rail {
+    min-height: clamp(64px, 8svh, 84px);
+    align-self: stretch;
+  }
+
+  html[data-motion-ready="true"] .cs-track[data-scrub-ready="true"] .cs-thumb {
+    min-height: 100%;
+    padding: clamp(9px, 1.25svh, 14px);
+  }
+
+  html[data-motion-ready="true"] .sp-runway {
+    height: var(--runway-building);
+  }
+
+  html[data-motion-ready="true"] .chapter-marker--landing {
+    top: var(--chapter-landing);
+  }
+
+  html[data-motion-ready="true"] .chapter-marker--projects-landing {
+    top: 32.5svh;
+  }
+
+  html[data-motion-ready="true"] .chapter-marker--about-landing {
+    top: 80svh;
+  }
+
+  html[data-motion-ready="true"] .chapter-marker--contact-landing {
+    top: auto;
+    bottom: 100svh;
+  }
+
+  html[data-motion-ready="true"] .sp-runway.skills-spatial {
+    /* Main-parity pit size: full 420px whenever the 100svh sticky frame can
+       fit it after the ~340px of chrome above (sticky padding + header +
+       paragraph); only short viewports (~720p) shrink it. */
+    --skills-pit-height: clamp(320px, calc(100svh - 340px), 420px);
+    height: var(--runway-skills);
+  }
+
+  .skills-spatial .gravity-pit {
+    height: var(--skills-pit-height);
+  }
+
+  .skills-spatial [data-chapter-body] > div {
+    min-height: var(--skills-pit-height) !important;
+  }
+
+  html[data-motion-ready="true"] .about-runway {
+    height: var(--runway-about);
+  }
+
+  html[data-motion-ready="true"] .contact-runway {
+    height: var(--runway-contact);
+    margin-top: var(--overlap-contact);
+  }
+
+  html[data-motion-ready="true"] .stack-section--building,
+  html[data-motion-ready="true"] .stack-section--skills,
+  html[data-motion-ready="true"] .stack-section--about {
+    margin-top: var(--overlap-chapter);
+  }
+
+  /* Boundary 0's scrub window runs from the outro CTA's "bottom center"
+     to Building's "top top" (StackTransitions.tsx). With zero overlap that
+     window measures ~147-148vh at every desktop test viewport (1440x900,
+     1024x768, 1536x639, 1150x631 — verified via getBoundingClientRect at
+     each), well past the ~80-100vh a CRT wipe needs. Pulling Building up
+     by 55svh trims it to ~90-92vh at all four, comfortably positive and
+     inside range without the degenerate (end <= start) window a full
+     -100svh overlap would reintroduce. */
+  html[data-motion-ready="true"] .stack-section--building {
+    margin-top: var(--overlap-building);
+  }
+
+  html[data-motion-ready="true"] .sp-sticky,
+  html[data-motion-ready="true"] .about-sticky,
+  html[data-motion-ready="true"] .contact-sticky {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  html[data-motion-ready="true"] .sp-sticky,
+  html[data-motion-ready="true"] .about-sticky {
+    display: flex;
+  }
+
+  html[data-motion-ready="true"] .contact-sticky {
+    display: block;
+  }
+
+  html[data-motion-ready="true"] .sd-outro {
+    min-height: 100svh;
+    justify-content: flex-start;
+    padding-top: max(var(--nav-clearance), 10svh);
+  }
+
+  html[data-motion-ready="true"] .sd-outro .sd-cta {
+    padding-top: 0;
+  }
+}
+
+/* Wide but short laptops keep the complete tableau inside the sticky frame. */
+@media (min-width: 768px) and (max-height: 820px) and (hover: hover) and (pointer: fine) {
+  .container {
+    padding-inline: clamp(28px, 3vw, 42px);
+  }
+
+  .hero-sticky {
+    padding-top: clamp(72px, 10svh, 92px);
+  }
+
+  .hero-inner-grid {
+    grid-template-columns: 50.5fr 49.5fr;
+    gap: clamp(28px, 3vw, 44px);
+  }
+
+  .hero-text-col {
+    max-width: 51vw;
+  }
+
+  .hero-name-split {
+    font-size: clamp(60px, 9.2vw, 112px);
+    margin-bottom: clamp(20px, 3.8svh, 32px);
+  }
+
+  .hero-eyebrow {
+    margin-bottom: clamp(16px, 3svh, 24px);
+  }
+
+  .hero-tagline {
+    font-size: clamp(17px, 2.3svh, 21px);
+    line-height: 1.42;
+  }
+
+  .hero-sub {
+    margin-bottom: clamp(18px, 3.7svh, 28px);
+    line-height: 1.45;
+  }
+
+  .hero-buttons {
+    gap: 8px;
+  }
+
+  .hero-buttons .btn {
+    padding-inline: 13px;
+    font-size: 11px;
+  }
+
+  html[data-motion-ready="true"] .cs-track[data-scrub-ready="true"] .cs-viewport {
+    grid-template-rows: auto minmax(0, 1fr) 2px minmax(64px, 8svh);
+    row-gap: 9px;
+    padding-top: max(var(--nav-clearance), 98px);
+  }
+
+  .cs-slide {
+    grid-template-columns: minmax(0, 1.42fr) minmax(278px, 1fr);
+    gap: clamp(26px, 3vw, 42px);
+  }
+
+  .cs-title {
+    font-size: clamp(22px, 3.8svh, 30px);
+  }
+
+  .cs-subtitle {
+    margin-bottom: 7px;
+    font-size: clamp(12px, 2svh, 14px);
+  }
+
+  .cs-lead-metric,
+  .cs-metric {
+    margin-block: 5px 8px;
+    font-size: clamp(10px, 1.7svh, 12px);
+  }
+
+  .cs-desc {
+    margin-bottom: 8px;
+    font-size: clamp(11px, 1.82svh, 13px);
+    line-height: 1.45;
+  }
+
+  .cs-proof {
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .cs-proof li {
+    font-size: clamp(9px, 1.48svh, 10.5px);
+    line-height: 1.28;
+  }
+
+  .sd-card-tags {
+    gap: 4px;
+  }
+
+  .sd-tag {
+    padding: 3px 7px;
+    font-size: 8.5px;
+  }
+
+  .cs-links {
+    gap: 12px;
+    margin-top: 7px;
+  }
+
+  .cs-caption-alt {
+    font-size: 9.5px;
+  }
+}
+
+@media (min-width: 768px) and (max-height: 720px) and (hover: hover) and (pointer: fine) {
+  html[data-motion-ready="true"] .sp-sticky {
+    padding-top: calc(var(--nav-clearance) + 8px);
+  }
+
+  html[data-motion-ready="true"] .about-sticky {
+    align-items: flex-start;
+    padding-top: calc(var(--nav-clearance) + 8px);
+    padding-bottom: 16px;
+  }
+
+  .about-bio {
+    gap: 10px;
+  }
+
+  .about-terminal-wrap {
+    margin-top: clamp(30px, 8svh, 52px);
+  }
+}
+
+/* TOUCH_MEDIA_QUERY in lib/mediaQueries.ts ("(max-width: 767px), (hover: none),
+   (pointer: coarse)") plus reduced motion. Keep the width in sync. */
+/* Natural-flow story on touch/coarse pointer and reduced motion. */
+@media (max-width: 767px), (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .hero-runway,
+  .sp-runway,
+  .sp-runway.skills-spatial,
+  .about-runway,
+  .contact-runway,
+  .cs-track {
+    height: auto !important;
+    min-height: 0 !important;
+    margin-top: 0 !important;
+  }
+
+  .hero-sticky,
+  .sp-sticky,
+  .about-sticky,
+  .contact-sticky,
+  .cs-viewport {
+    position: relative !important;
+    inset: auto !important;
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .hero-sticky {
+    min-height: 100svh !important;
+    display: flex !important;
+  }
+
+  .stack-section--building,
+  .stack-section--skills,
+  .stack-section--about {
+    margin-top: 0 !important;
+  }
+
+  .cs-stagebox {
+    display: grid !important;
+    min-height: 0 !important;
+    height: auto !important;
+    gap: clamp(72px, 14vw, 112px);
+  }
+
+  /* The section wrapper ships with inline opacity:0/pointer-events:none for
+     the desktop scrub handoff. Every non-immersive environment must clear it
+     here — the only JS that clears it lives in the laptop scrub, which only
+     runs on >=900px immersive viewports (the 768-899 band and every
+     non-immersive tier rely on this rule and the <=899 rescue in
+     globals.css). */
+  .sticky-deck-section {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  .cs-slide {
+    position: relative !important;
+    inset: auto !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+  }
+
+  .cs-progress,
+  .cs-ghost {
+    display: none !important;
+  }
+
+  .sp-content,
+  .sp-reveal,
+  .about-split-container {
+    opacity: 1 !important;
+    transform: none !important;
+    clip-path: none !important;
+  }
+
+  .more-work {
+    padding-top: clamp(76px, 12vw, 112px);
+  }
+
+  /* The Selected Work intro is a full-viewport page for the desktop
+     laptop-dissolve handoff; in natural flow that reads as a huge dead
+     gap between the title and the first card. Collapse it to normal
+     section rhythm and drop the floating scroll cue (it anchors to the
+     bottom of the tall header and would collide with the deck). */
+  .sd-header {
+    min-height: 0 !important;
+    padding-top: calc(var(--nav-clearance) + 24px);
+    padding-bottom: 8px;
+  }
+
+  .sd-header-cue {
+    display: none;
+  }
+
+  /* Contact ships with inline min-height:100vh for the desktop burn
+     tableau; in natural flow the short content floats in a full viewport,
+     leaving a dead zone before the footer. !important beats the
+     non-important inline style. Padding restores section rhythm now that
+     flex-centering has nothing to center within. */
+  .contact-section {
+    min-height: 0 !important;
+    padding-block: clamp(72px, 12svh, 104px);
+  }
+}
+
+/* ── Main-parity mobile hero: pinned 300svh runway ──
+   Main pinned the hero at every width; the rescue block above flattens it
+   for the natural-flow contract. Re-enable the pin for coarse pointers only
+   (the same NOT-pointer:fine set lib/motionEnvironment.ts reports as
+   coarsePointer, whose fly-apart scrub in HeroSection drives this runway),
+   gated on data-motion-ready="true" so JS-dead/failed sessions keep the
+   flat rescue hero, and on full motion so reduced-motion users never scroll
+   a dead 300svh pin. Declared after the rescue block: equal !important,
+   higher specificity, later in the file. */
+@media (pointer: coarse) and (prefers-reduced-motion: no-preference),
+       (pointer: none) and (prefers-reduced-motion: no-preference) {
+  html[data-motion-ready="true"] .hero-runway {
+    height: var(--runway-hero) !important;
+  }
+
+  html[data-motion-ready="true"] .hero-sticky {
+    position: sticky !important;
+    top: 0 !important;
+    inset-inline: auto !important;
+    height: 100svh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .hero-text-col {
+    max-width: 100%;
+  }
+
+  .hero-name-split {
+    font-size: clamp(52px, 14vw, 88px);
+  }
+
+  .hero-3d-layer,
+  .visual-stage {
+    display: none;
+  }
+
+  .more-work-row {
+    grid-template-columns: 34px minmax(0, 1fr) 22px;
+    gap: 12px 16px;
+    padding-block: 24px;
+    min-height: 0;
+  }
+
+  .more-work-row strong {
+    grid-column: 2;
+  }
+
+  .more-work-chevron {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+
+  /* Must track the 260px branch of the <Image> sizes attribute */
+  .more-work-strip img {
+    width: 260px;
+    height: 124px;
+  }
+
+  .more-work-more {
+    height: 124px;
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --nav-clearance: 88px;
+  }
+
+  .terminal-highlight {
+    padding-inline: 0.08em;
+    margin-inline: 0.02em;
+  }
+
+  .more-work-header {
+    display: block;
+  }
+
+  .more-work-header h3 {
+    margin-top: 12px;
+  }
+
+  .more-work-row {
+    grid-template-columns: 30px minmax(0, 1fr) 22px;
+  }
+
+  .more-work-item a {
+    justify-content: flex-start;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-laptop-poster {
+    animation: none;
+    opacity: 0.88;
+  }
+
+  .hero-eyebrow-dot,
+  .sd-pipeline-pulse,
+  .sd-header-cue,
+  .scramble-tick {
+    animation: none !important;
+  }
+
+  .mobile-menu,
+  .mobile-menu a {
+    transition: none !important;
+  }
+}
+
+/* ── Entrance reveals (IO-armed, fail-open) ──────────────────────────
+   StickyDeckSection stamps `data-io-armed` right before observing an
+   element and `data-io-in` when it enters the viewport. The hidden
+   state exists ONLY between those stamps — JS dead means neither is
+   ever set and everything renders visible. The !importants are needed
+   to out-rank the touch rescue block's `.cs-slide { opacity: 1
+   !important; transform: none !important }`; this block sits later in
+   the file and carries higher specificity, so it wins while armed and
+   yields the instant `data-io-in` lands. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-io-armed] {
+    transition:
+      opacity 0.65s var(--ease-out-expo),
+      transform 0.65s var(--ease-out-expo);
+  }
+
+  [data-io-armed]:not([data-io-in]) {
+    opacity: 0 !important;
+    transform: translate3d(0, 28px, 0) !important;
+  }
+
+  html[data-motion-ready="failed"] [data-io-armed],
+  html[data-motion-ready="failed"] [data-io-armed]:not([data-io-in]) {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* ── JS-dead fail-open ────────────────────────────────────────────────
+   Before hydration, `data-motion-ready` does not exist at all (page.tsx
+   stamps "false" in its first effect) — and with JS disabled it never
+   will. Two elements ship inline-hidden for the desktop scrub handoff
+   (#projects via opacity:0/pointer-events:none, .contact-links via
+   opacity:0/translateY) and at fine-pointer desktop widths ONLY JS ever
+   clears them: the touch/<=899px !important rescues don't match there,
+   and the base natural-flow rules lose to inline styles. Verified: a
+   no-JS 1440px render shows an invisible Projects chapter and invisible
+   contact buttons. Scope the CSS override to the attribute's ABSENCE so
+   it can never fight a live-JS mode; the pre-hydration window it also
+   covers sits behind the opaque server-rendered #preloader-mask. */
+html:not([data-motion-ready]) .sticky-deck-section {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+html:not([data-motion-ready]) .contact-links {
+  opacity: 1 !important;
+  transform: none !important;
+}

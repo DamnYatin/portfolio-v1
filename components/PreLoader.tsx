@@ -1,0 +1,710 @@
+"use client";
+
+import * as React from "react";
+import {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
+import { useFrame, useThree, extend } from "@react-three/fiber";
+import { shaderMaterial, useProgress } from "@react-three/drei";
+import * as THREE from "three";
+import gsap from "gsap";
+import { getLenis } from "../lib/lenisInstance";
+import { loaderControls } from "../lib/loaderControls";
+import { resolveMotionEnvironment } from "../lib/motionEnvironment";
+
+/* ================================================================
+   PreLoader — "Liquid Obsidian" honest-manifest burn loader
+
+   ┌──────────────────────────────────────────────────────────────┐
+   │ LOAD-BEARING ARCHITECTURAL ASSUMPTION — DO NOT BREAK         │
+   │                                                              │
+   │ useProgress reads THREE.DefaultLoadingManager, which is      │
+   │ GLOBAL, not per-Canvas. This loader only sees the heavy      │
+   │ assets (hardware_laptop.glb + keyboard texture + bg.jpg)     │
+   │ because the main 3D scene (InteractiveModel) mounts          │
+   │ CONCURRENTLY as a sibling underneath this overlay in         │
+   │ app/page.tsx, loading via useGLTF/useTexture (bg.jpg via a   │
+   │ bare THREE.ImageLoader — CPU-only, never GPU-sampled) into   │
+   │ that same global manager.                                    │
+   │                                                              │
+   │ If the 3D scene is ever lazy-mounted AFTER the preloader     │
+   │ finishes, useProgress sees nothing, the manifest stays       │
+   │ empty, and this component degrades to gating on time alone   │
+   │ — covered by the FAILSAFE_MS ceiling below, but the honest   │
+   │ manifest is lost. Keep the scene mounting concurrent.        │
+   └──────────────────────────────────────────────────────────────┘
+
+   The loader shader is rendered inside the page's single visual-stage
+   Canvas. It deliberately remains a different material from
+   components/BurnTransition.tsx: that effect is a
+   directional fire *line* (bottom→up, ~99% transparent, scroll-
+   scrub driven via the burnControls singleton); this one is a
+   radial *hole* opening center→out on a fully opaque liquid-metal
+   field, driven by a one-shot GSAP tween. For visual DNA, the
+   hash/noise/fbm GLSL helpers and the hot-rim color ramp
+   (WHITE_HOT / ORANGE / CHAMPAGNE / CHAR) are lifted verbatim
+   from BurnTransition.tsx so the burn edge reads as the same fire.
+   ================================================================ */
+
+/* ── Timing constants ── */
+const FLOOR_MS = 1800;      // minimum display time — prevents fast-connection flash
+const FAILSAFE_MS = 9000;   // hard ceiling — forces exit if assets stall/404/never register
+const PRINT_INTERVAL_MS = 90; // terminal print cadence (legible even on gigabit)
+const BURN_DURATION_S = 1.5;
+const HERO_HANDOFF_AT = 0.4; // fire onComplete at 40% of the burn (curtain-midpoint parity)
+const READY_LINE = "> SYSTEM READY. [OK]";
+
+/* ── Mobile (coarse-pointer / non-desktopScrub) boot sequence ──
+   The WebGL stage never mounts on these paths, so there is no real asset
+   manifest to gate on — waiting for one is the known FAILSAFE_MS hang trap.
+   This sequence is purely time-based: a fixed set of lines typed out over
+   MOBILE_BOOT_MS, then a plain DOM fade (no shader burn, no canvas). */
+const MOBILE_BOOT_LINES = [
+  "> FETCHING: hardware_laptop.glb ... [OK]",
+  "> FETCHING: Mac Keyboard.jpg ... [OK]",
+  "> FETCHING: bg.jpg ... [OK]",
+  READY_LINE,
+];
+const MOBILE_BOOT_MS = 1700;   // synthetic progress ceiling (~1.6-2s to "100%")
+const MOBILE_BOOT_SETTLE_MS = 150; // let the READY line sit before the fade starts
+const MOBILE_FADE_S = 0.55;    // smooth overlay fade once boot completes
+
+const TERMINAL_TEXT_STYLE: React.CSSProperties = {
+  position: "absolute",
+  left: "24px",
+  bottom: "24px",
+  zIndex: 2,
+  display: "flex",
+  flexDirection: "column",
+  gap: "3px",
+  maxWidth: "min(80vw, 560px)",
+  fontFamily: "var(--font-jetbrains), 'JetBrains Mono', monospace",
+  fontSize: "12px",
+  lineHeight: 1.5,
+  letterSpacing: "0.04em",
+  textTransform: "uppercase",
+  color: "rgba(226, 226, 226, 0.7)",
+  whiteSpace: "nowrap",
+};
+
+/* ── Fullscreen-quad vertex shader: plane spans clip space directly ── */
+const VERTEX = /* glsl */ `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+  }
+`;
+
+const FRAGMENT = /* glsl */ `
+  precision highp float;
+
+  varying vec2 vUv;
+
+  uniform float uTime;          // pre-integrated churn clock (CPU-side speed lerp)
+  uniform float uSpeed;         // 0→1 load progress, lerped — drives churn violence
+  uniform float uBurnProgress;  // 0→1 GSAP exit tween — radial burn mask
+  uniform vec2  uResolution;
+
+  /* ── liquid obsidian field palette ── */
+  const vec3 OBSIDIAN = vec3(0.051, 0.043, 0.035); // #0D0B09 — --surface-0 linear
+  const vec3 GUNMETAL = vec3(0.086, 0.075, 0.063); // #161310 — --surface-1 linear
+  const vec3 SHEEN    = vec3(0.941, 0.910, 0.824); // faint cream specular glint
+
+  /* ── hot-rim ramp — lifted verbatim from BurnTransition.tsx ── */
+  const vec3 WHITE_HOT = vec3(0.980, 0.961, 0.933); // #FAF5EE white-hot edge
+  const vec3 ORANGE    = vec3(0.788, 0.659, 0.322); // #C9A852 antique gold mid
+  const vec3 CHAMPAGNE = vec3(0.220, 0.157, 0.063); // #38280F cooling char-gold
+  const vec3 CHAR      = vec3(0.035, 0.027, 0.020); // deep warm char
+
+  /* ── 2D value-noise → fbm — lifted verbatim from BurnTransition.tsx ── */
+  float hash(vec2 p) {
+    p = fract(p * vec2(123.34, 345.45));
+    p += dot(p, p + 34.345);
+    return fract(p.x * p.y);
+  }
+
+  float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    float a = hash(i + vec2(0.0, 0.0));
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+  }
+
+  float fbm(vec2 p) {
+    float v = 0.0;
+    float amp = 0.5;
+    mat2 rot = mat2(0.80, 0.60, -0.60, 0.80);
+    for (int i = 0; i < 5; i++) {
+      v += amp * noise(p);
+      p = rot * p * 2.0;
+      amp *= 0.5;
+    }
+    return v;
+  }
+
+  void main() {
+    /* aspect-correct coords so the fluid never stretches */
+    float aspect = uResolution.x / uResolution.y;
+    vec2 st = vec2(vUv.x * aspect, vUv.y);
+    vec2 p = st * 3.0;
+
+    /* ── the churning liquid: domain-warped fbm. uSpeed widens the
+          warp so the metal visibly boils harder as load nears 100% ── */
+    vec2 warp = vec2(
+      fbm(p + vec2(0.0, uTime * 0.18)),
+      fbm(p + vec2(5.2, 1.3) - uTime * 0.15)
+    );
+    float churn = fbm(p + warp * (0.8 + uSpeed * 1.1) + vec2(0.0, -uTime * 0.10));
+
+    vec3 col = mix(OBSIDIAN, GUNMETAL, smoothstep(0.30, 0.78, churn));
+
+    /* thin liquid-metal glints riding the warp crests */
+    float glint = pow(smoothstep(0.62, 0.95, fbm(p * 1.7 - warp + vec2(uTime * 0.06, 0.0))), 3.0);
+    col += SHEEN * glint * (0.035 + uSpeed * 0.055);
+
+    /* soft vignette for depth */
+    float vig = smoothstep(1.15, 0.35, length(vUv - 0.5) * 1.6);
+    col *= mix(0.82, 1.0, vig);
+
+    /* ── radial burn-through mask, center → out ──
+       front is the burn radius in aspect-corrected units; the fbm
+       raggedness keeps the hole organic, never a clean circle. */
+    vec2 center = vec2(0.5 * aspect, 0.5);
+    float dist = length(st - center);
+    float maxR = length(center);              // reaches the corners
+    float ragged = (fbm(p * 1.5 + warp) - 0.5) * 0.22;
+
+    const float RIM = 0.16;                   // charred-rim band width
+    float front = mix(-RIM * 1.5, maxR + RIM * 2.0, clamp(uBurnProgress, 0.0, 1.0));
+    float d = front - (dist + ragged);        // d > 0 ⇒ burned side (inside the hole)
+
+    if (d > RIM) discard;                     // fully burned — page shows through
+
+    if (d > 0.0) {
+      /* charred rim just inside the hole: white-hot front edge →
+         superheated orange → char, dissolving to transparent */
+      float u = d / RIM;
+      vec3 rim = mix(WHITE_HOT, ORANGE, smoothstep(0.0, 0.30, u));
+      rim = mix(rim, CHAMPAGNE, smoothstep(0.25, 0.50, u));
+      rim = mix(rim, CHAR, smoothstep(0.45, 0.85, u));
+      float fade = 1.0 - smoothstep(0.55, 1.0, u);
+      gl_FragColor = vec4(rim, fade);
+      return;
+    }
+
+    /* pre-heat glow on the unburned side, hugging the front */
+    float heat = max(1.0 - (-d) / (RIM * 0.9), 0.0);
+    col = mix(col, ORANGE, pow(heat, 2.2) * 0.7);
+    col += WHITE_HOT * pow(heat, 5.0) * 0.6;
+
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+/* ── Material defined OUTSIDE the component (drei shaderMaterial →
+      auto uniform setters; safe to mutate via ref in useFrame) ── */
+const LiquidObsidianMaterial = shaderMaterial(
+  {
+    uTime: 0,
+    uSpeed: 0,
+    uBurnProgress: 0,
+    uResolution: new THREE.Vector2(1, 1),
+  },
+  VERTEX,
+  FRAGMENT
+);
+extend({ LiquidObsidianMaterial });
+
+type LiquidObsidianMaterialImpl = THREE.ShaderMaterial & {
+  uTime: number;
+  uSpeed: number;
+  uBurnProgress: number;
+  uResolution: THREE.Vector2;
+};
+
+declare module "@react-three/fiber" {
+  interface ThreeElements {
+    liquidObsidianMaterial: React.PropsWithChildren<{
+      ref?: React.Ref<LiquidObsidianMaterialImpl>;
+      key?: string;
+      transparent?: boolean;
+      depthWrite?: boolean;
+      depthTest?: boolean;
+    }>;
+  }
+}
+
+/* The DOM loader writes plain numbers to loaderControls while this scene
+   copies them into uniforms. No React render occurs during the burn. */
+export function ObsidianPlane() {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const matRef = useRef<LiquidObsidianMaterialImpl>(null);
+  const { size, invalidate } = useThree();
+  const churnTimeRef = useRef(0);
+  const speedRef = useRef(0);
+
+  useEffect(() => {
+    if (matRef.current) matRef.current.uResolution.set(size.width, size.height);
+    invalidate();
+  }, [invalidate, size]);
+
+  useEffect(() => {
+    loaderControls.setInvalidate(invalidate);
+    invalidate();
+    return () => loaderControls.setInvalidate(null);
+  }, [invalidate]);
+
+  useFrame((_, delta) => {
+    const mat = matRef.current;
+    const mesh = meshRef.current;
+    if (!mat || !mesh) return;
+
+    const active = loaderControls.getActive();
+    mesh.visible = active;
+    if (!active) return;
+
+    /* Clamp delta: GLB parse / texture upload can stall the main
+       thread for 100ms+; an unclamped delta telescopes that stall
+       into a single huge time jump and the liquid visibly glitches.
+       Capped at ~30fps the worst case is a brief, smooth slowdown. */
+    const safeDelta = Math.min(delta, 0.033);
+
+    /* LERP uSpeed toward the progress-mapped target — progress
+       arrives in jumps (0 → 34 → 100); hard-assigning would make
+       the churn stutter. */
+    const target = loaderControls.getSpeedTarget();
+    speedRef.current += (target - speedRef.current) * Math.min(1, safeDelta * 3);
+
+    /* integrate the clock on the CPU so a changing speed never
+       causes a time-jump artifact (uTime * speed would snap) */
+    churnTimeRef.current += safeDelta * (0.45 + speedRef.current * 2.2);
+
+    mat.uTime = churnTimeRef.current;
+    mat.uSpeed = speedRef.current;
+    mat.uBurnProgress = loaderControls.getBurnProgress();
+
+    // The shared stage uses frameloop="demand". The liquid is time-based
+    // while active, then becomes completely idle once its exit finishes.
+    invalidate();
+  });
+
+  return (
+    <mesh ref={meshRef} frustumCulled={false} renderOrder={100}>
+      <planeGeometry args={[2, 2]} />
+      <liquidObsidianMaterial
+        ref={matRef}
+        key={(LiquidObsidianMaterial as unknown as { key: string }).key}
+        transparent
+        depthTest={false}
+        depthWrite={false}
+      />
+    </mesh>
+  );
+}
+
+/* ── Manifest helpers ── */
+function shortName(url: string): string {
+  /* GLTFLoader registers its internal buffers/images as blob: URLs —
+     real assets, but a full UUID is noise. Show a short blob id. */
+  if (url.startsWith("blob:")) {
+    const id = url.split("/").pop() ?? "";
+    return `BLOB ${id.slice(0, 8)}`;
+  }
+  const clean = url.split("?")[0].split("#")[0];
+  const segments = clean.split("/").filter(Boolean);
+  const name = segments.length > 0 ? segments[segments.length - 1] : clean;
+  return name.length > 36 ? `…${name.slice(-35)}` : name;
+}
+
+interface PreLoaderProps {
+  onComplete: () => void;
+}
+
+export default function PreLoader({ onComplete }: PreLoaderProps) {
+  const [lines, setLines] = useState<string[]>(["> INIT RENDER PIPELINE ..."]);
+  const [floorPassed, setFloorPassed] = useState(false);
+  const [readyPrinted, setReadyPrinted] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const environment = useMemo(() => resolveMotionEnvironment(), []);
+  const loaderSnapshot = useSyncExternalStore(
+    loaderControls.subscribe,
+    loaderControls.getSnapshot,
+    loaderControls.getServerSnapshot,
+  );
+  const staticFallback =
+    environment.reducedMotion ||
+    environment.coarsePointer ||
+    /* Must mirror HeroSection's mountVisualStage: when the stage doesn't
+       mount (sub-768 windows, or the 768-899 scrub-without-canvas band),
+       the full pipeline's asset gate has nothing to wait on and would
+       hang to FAILSAFE_MS. */
+    !environment.desktopScrub ||
+    !environment.stageViewport ||
+    !environment.webglAvailable ||
+    loaderSnapshot.failed;
+  /* The tiers that take staticFallback purely because the WebGL stage
+     doesn't mount (touch devices, sub-768 windows, the 768-899
+     scrub-without-canvas band) — not because motion is unwanted or
+     something failed. These get a smooth terminal boot instead of the
+     quick flash below. */
+  const mobileTerminalBoot =
+    (!environment.desktopScrub || !environment.stageViewport) &&
+    !environment.reducedMotion &&
+    !loaderSnapshot.failed;
+
+  const terminalRef = useRef<HTMLDivElement>(null);
+  const staticOverlayRef = useRef<HTMLDivElement>(null);
+  const onCompleteRef = useRef(onComplete);
+  const burnProxyRef = useRef({ value: 0 });
+  const manifestQueueRef = useRef<string[]>([]);
+  const seenUrlsRef = useRef<Set<string>>(new Set());
+  const assetsDoneRef = useRef(false);
+  const readyInjectedRef = useRef(false);
+  const burnStartedRef = useRef(false);
+  const staticExitCompletedRef = useRef(false);
+  /* Guards the early (fade-start) onComplete handoff in the mobile boot
+     against double-firing when finish() runs at fade end. */
+  const staticHandoffFiredRef = useRef(false);
+  const handoffCallRef = useRef<gsap.core.Tween | null>(null);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    if (!loaderSnapshot.stageReady || staticFallback) return;
+    const raf = requestAnimationFrame(() => {
+      document.getElementById("preloader-mask")?.remove();
+      setLines((current) =>
+        current.includes("> VISUAL STAGE READY [OK]")
+          ? current
+          : [...current, "> VISUAL STAGE READY [OK]"],
+      );
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [loaderSnapshot.stageReady, staticFallback]);
+
+  /* ── Scroll lock — keyed to isComplete, NOT unmount. The component
+        never truly unmounts (page.tsx renders it unconditionally and
+        `return null` keeps the fiber alive), so unmount-tied cleanups
+        would hold the page scroll-locked forever. With [isComplete]:
+        mount locks; when isComplete flips true the cleanup releases,
+        and the re-run bails before re-locking. The lock therefore
+        survives the 40% hero handoff and releases exactly when the
+        burn finishes and the overlay leaves the DOM. Applied in the
+        static-fallback path too (mobile fades in ~400ms; reduced
+        motion exits immediately, but neither path should scroll).
+
+        Two layers, on purpose:
+        - overflow:hidden hides the scrollbar and blocks native scroll
+          even if Lenis hasn't initialized yet;
+        - lenis.stop() keeps Lenis from integrating wheel velocity in
+          the background and "kicking" the page when the lock lifts.
+          (Null-guarded: if Lenis isn't up yet, overflow already has
+          scroll blocked — no retry needed.) ── */
+  useEffect(() => {
+    if (isComplete) return;
+    document.documentElement.style.overflow = "hidden";
+    getLenis()?.stop();
+    return () => {
+      document.documentElement.style.overflow = "";
+      getLenis()?.start();
+    };
+  }, [isComplete]);
+
+  /* Component is mounted ssr:false, so window exists at first render */
+  /* ── Gate condition A: assets fully loaded. loaded > 0 guards the
+        nothing-ever-registered case (degraded mode per the header
+        comment) — there the failsafe ceiling is the only exit. ── */
+  const { progress, loaded } = useProgress();
+  const assetsDone = progress >= 100 && loaded > 0;
+
+  useEffect(() => {
+    assetsDoneRef.current = assetsDone;
+  }, [assetsDone]);
+
+  /* Map real progress onto the shader's churn-violence target */
+  useEffect(() => {
+    loaderControls.setSpeedTarget(progress / 100);
+  }, [progress]);
+
+  /* Mobile policy, WebGL loss/unavailability, and reduced motion retain the
+     loader's visual identity as a short static surface without another context. */
+  useEffect(() => {
+    if (!staticFallback || isComplete) return;
+    loaderControls.setActive(false);
+    document.getElementById("preloader-mask")?.remove();
+
+    const fireHandoff = () => {
+      if (staticHandoffFiredRef.current) return;
+      staticHandoffFiredRef.current = true;
+      onCompleteRef.current();
+    };
+    const finish = () => {
+      if (staticExitCompletedRef.current) return;
+      staticExitCompletedRef.current = true;
+      fireHandoff();
+      setIsComplete(true);
+    };
+
+    if (environment.reducedMotion) {
+      finish();
+      return;
+    }
+
+    const overlay = staticOverlayRef.current;
+    if (!overlay) {
+      finish();
+      return;
+    }
+
+    /* ── Coarse pointer / non-desktopScrub: synthetic terminal boot ──
+       Purely time-based (setTimeout, not rAF or asset progress) so a
+       backgrounded tab or a stalled fetch can never stall this — the
+       whole sequence is bounded by MOBILE_BOOT_MS + MOBILE_FADE_S
+       regardless of what's actually happening on the network. */
+    if (mobileTerminalBoot) {
+      let fadeRaf = 0;
+      const stepMs = MOBILE_BOOT_MS / MOBILE_BOOT_LINES.length;
+      const timers = MOBILE_BOOT_LINES.map((line, i) =>
+        setTimeout(() => {
+          setLines((ls) => [...ls.slice(-39), line]);
+        }, stepMs * (i + 1)),
+      );
+
+      const bootTimer = setTimeout(() => {
+        /* Hand off at fade START (desktop HERO_HANDOFF_AT parity), not
+           fade end: onComplete → preloaderDone → data-motion-ready="true"
+           must all land while the overlay still covers. motion-ready
+           releases the `transform: none !important` failsafe on the name
+           parts — if it flips after the overlay is gone, the settled name
+           is visible for a few frames, then snaps to the hidden entrance
+           pose (the mobile "Jonathan Jesni flash"). setIsComplete stays
+           at fade end: it unmounts the overlay (`isComplete` render gate),
+           which would kill the fade if fired here. */
+        fireHandoff();
+        /* page.tsx flips motion-ready inside its own rAF; hold the fade
+           back a frame past that so not even one partially-faded frame
+           can render before the name failsafe releases. */
+        fadeRaf = requestAnimationFrame(() => {
+          fadeRaf = requestAnimationFrame(() => {
+            gsap.to(overlay, {
+              opacity: 0,
+              duration: MOBILE_FADE_S,
+              ease: "power2.out",
+              onComplete: finish,
+            });
+          });
+        });
+      }, MOBILE_BOOT_MS + MOBILE_BOOT_SETTLE_MS);
+
+      return () => {
+        timers.forEach(clearTimeout);
+        clearTimeout(bootTimer);
+        cancelAnimationFrame(fadeRaf);
+        gsap.killTweensOf(overlay);
+      };
+    }
+
+    const fade = gsap.to(overlay, {
+      opacity: 0,
+      duration: 0.4,
+      ease: "power1.out",
+      onComplete: finish,
+    });
+    return () => {
+      fade.kill();
+    };
+  }, [environment.reducedMotion, isComplete, staticFallback, mobileTerminalBoot]);
+
+  /* ── Honest manifest capture: CHAIN onto the global manager's
+        onProgress (fired per itemEnd, i.e. per completed asset).
+        drei's useProgress assigned these handlers at module load —
+        we must wrap, never replace, or its store goes dead. URLs are
+        deduped and queued; useProgress().item is NOT used because it
+        only surfaces the current item per render and drops URLs when
+        many assets resolve between renders. ── */
+  useEffect(() => {
+    /* isComplete-keyed (not unmount-keyed): the component renders null
+       after completion but never unmounts, so the wrap must be
+       restored when the loader finishes, not at fiber teardown. */
+    if (staticFallback || isComplete) return;
+    const manager = THREE.DefaultLoadingManager;
+    const prevOnProgress = manager.onProgress;
+
+    manager.onProgress = (url: string, itemsLoaded: number, itemsTotal: number) => {
+      prevOnProgress?.call(manager, url, itemsLoaded, itemsTotal);
+      if (!seenUrlsRef.current.has(url)) {
+        seenUrlsRef.current.add(url);
+        manifestQueueRef.current.push(url);
+      }
+    };
+
+    return () => {
+      manager.onProgress = prevOnProgress;
+    };
+  }, [isComplete, staticFallback]);
+
+  /* ── The exit. Idempotent: gate and failsafe can both call it. ── */
+  const startBurn = useCallback(() => {
+    if (burnStartedRef.current) return;
+    burnStartedRef.current = true;
+
+    // Backstop: guarantee the hero mask is gone before the burn dissolves to
+    // reveal the page (idempotent — no-op if already removed by onCreated).
+    document.getElementById("preloader-mask")?.remove();
+
+    /* failsafe path may arrive before READY printed — snap it in */
+    if (!readyInjectedRef.current) {
+      readyInjectedRef.current = true;
+      setLines((ls) => [...ls, READY_LINE]);
+    }
+
+    const burnProxy = burnProxyRef.current;
+    gsap.to(burnProxy, {
+      value: 1,
+      duration: BURN_DURATION_S,
+      ease: "power2.inOut",
+      onUpdate: () => loaderControls.setBurnProgress(burnProxy.value),
+      onComplete: () => {
+        loaderControls.setBurnProgress(1);
+        loaderControls.setActive(false);
+        setIsComplete(true);
+      },
+    });
+
+    if (terminalRef.current) {
+      gsap.to(terminalRef.current, {
+        opacity: 0,
+        duration: 0.45,
+        ease: "power2.out",
+        delay: 0.25,
+      });
+    }
+
+    /* Hero handoff mid-burn: the page underneath is NOT statically
+       waiting — HeroSection animates in on this signal, so it must
+       fire as the hole opens (≈40%), not before or after. */
+    handoffCallRef.current = gsap.delayedCall(
+      BURN_DURATION_S * HERO_HANDOFF_AT,
+      () => onCompleteRef.current()
+    );
+  }, []);
+
+  /* ── Gate condition B (1800ms floor) + the failsafe ceiling.
+        isComplete-keyed so the (already-guarded) ceiling timer is
+        cleared once the loader finishes. ── */
+  useEffect(() => {
+    if (staticFallback || isComplete) return;
+    const floor = setTimeout(() => setFloorPassed(true), FLOOR_MS);
+    const ceiling = setTimeout(() => startBurn(), FAILSAFE_MS);
+    return () => {
+      clearTimeout(floor);
+      clearTimeout(ceiling);
+    };
+  }, [isComplete, startBurn, staticFallback]);
+
+  /* ── Print queue drain: one line per tick keeps the terminal
+        legible even when 50 assets resolve in 50ms. Once drained AND
+        assets are done (condition C), inject SYSTEM READY exactly
+        once. ── */
+  useEffect(() => {
+    /* isComplete-keyed so the interval stops once the loader is done
+       (the component renders null but never unmounts) */
+    if (staticFallback || isComplete) return;
+    const id = setInterval(() => {
+      const queue = manifestQueueRef.current;
+      if (queue.length > 0) {
+        const url = queue.shift()!;
+        setLines((ls) => [...ls.slice(-39), `> FETCHING: ${shortName(url)} ... [OK]`]);
+      } else if (assetsDoneRef.current && !readyInjectedRef.current) {
+        readyInjectedRef.current = true;
+        setLines((ls) => [...ls.slice(-39), READY_LINE]);
+        setReadyPrinted(true);
+      }
+    }, PRINT_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [isComplete, staticFallback]);
+
+  /* ── The logic gate: A is folded into C (READY only prints once
+        assetsDone && queue drained), so burn ⇐ B && C. ── */
+  useEffect(() => {
+    if (!staticFallback && floorPassed && readyPrinted) startBurn();
+  }, [floorPassed, readyPrinted, startBurn, staticFallback]);
+
+  /* Kill in-flight tweens if we unmount mid-burn */
+  useEffect(() => {
+    const burnProxy = burnProxyRef.current;
+    return () => {
+      gsap.killTweensOf(burnProxy);
+      handoffCallRef.current?.kill();
+    };
+  }, []);
+
+  if (isComplete) return null;
+
+  if (staticFallback) {
+    return (
+      <div
+        ref={staticOverlayRef}
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 9999,
+          background:
+            "radial-gradient(circle at 18% 82%, rgba(201,168,82,.12), transparent 42%), radial-gradient(circle at 72% 18%, rgba(143,168,196,.07), transparent 38%), #0D0B09",
+          pointerEvents: "none",
+          overflow: "hidden",
+        }}
+      >
+        {mobileTerminalBoot && (
+          <div ref={terminalRef} style={TERMINAL_TEXT_STYLE}>
+            {lines.slice(-12).map((line, i) => (
+              <span key={`${i}-${line}`} style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                {line}
+              </span>
+            ))}
+            <span style={{ animation: "preloader-caret 1s steps(2) infinite" }}>_</span>
+            <style>{`@keyframes preloader-caret { 50% { opacity: 0; } }`}</style>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      aria-hidden="true"
+      id="preloader-overlay"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        pointerEvents: "none",
+        overflow: "hidden",
+      }}
+    >
+      {/* ── DOM terminal manifest — bottom-left, plain mono, capped ── */}
+      <div ref={terminalRef} style={TERMINAL_TEXT_STYLE}>
+        {lines.slice(-12).map((line, i) => (
+          <span key={`${i}-${line}`} style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+            {line}
+          </span>
+        ))}
+        <span style={{ animation: "preloader-caret 1s steps(2) infinite" }}>_</span>
+        <style>{`@keyframes preloader-caret { 50% { opacity: 0; } }`}</style>
+      </div>
+    </div>
+  );
+}
