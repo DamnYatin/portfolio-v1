@@ -10,7 +10,7 @@ export const absoluteTop = (el: HTMLElement) => {
   return rect.top + window.scrollY;
 };
 
-export const NAV_CLEARANCE_GAP = 24;
+export const NAV_CLEARANCE_GAP = 0;
 export type ScrollTargetKind = "landing" | "spy";
 
 export interface ScrollTargetMetrics {
@@ -25,20 +25,13 @@ export interface ScrollTargetSnapshot {
 }
 
 let targetSnapshot: ScrollTargetSnapshot = {
-  navClearance: NAV_CLEARANCE_GAP,
+  navClearance: 0,
   maxScrollY: 0,
   targets: new Map(),
 };
 
-export function measureNavClearance(
-  nav: HTMLElement | null =
-    typeof document === "undefined" ? null : document.getElementById("navbar"),
-  gap = NAV_CLEARANCE_GAP
-): number {
-  if (!nav) return Math.max(0, gap);
-  const rect = nav.getBoundingClientRect();
-  const bottom = Math.max(rect.bottom, rect.top + nav.offsetHeight);
-  return Math.max(0, Math.ceil(bottom + gap));
+export function measureNavClearance(): number {
+  return 0;
 }
 
 function markerFor(id: string, kind: ScrollTargetKind): HTMLElement | null {
@@ -141,8 +134,6 @@ export function observeScrollTargets(): () => void {
   };
   const observer =
     typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
-  const nav = document.getElementById("navbar");
-  if (nav) observer?.observe(nav);
   observer?.observe(document.body);
   window.addEventListener("resize", schedule, { passive: true });
   void document.fonts?.ready.then(schedule).catch(() => undefined);

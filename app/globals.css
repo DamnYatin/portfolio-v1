@@ -190,10 +190,6 @@ select:focus-visible,
   /* preloader curtain */
   --z-cursor: 9997;
   /* detection-reticle custom cursor */
-  --z-nav: 100;
-  /* floating nav pill */
-  --z-mobile-menu: 99;
-  /* full-screen mobile overlay */
   --z-above: 10;
   /* in-card elevated elements */
   --z-base: 1;
@@ -299,272 +295,7 @@ select:focus-visible,
   background: var(--border-hairline);
 }
 
-/* ============================================================
-   NAV - Floating glass-pill island, detached from top
-   ============================================================ */
-.nav {
-  position: fixed;
-  top: 24px;
-  left: 50%;
-  /* translateZ(0) keeps the pill on a permanent, stable compositing layer so
-     its backdrop-filter doesn't re-promote/re-raster (jittering the WebGL
-     canvas beneath) when nav state changes during scroll. */
-  transform: translateX(-50%) translateZ(0);
-  will-change: transform;
-  z-index: var(--z-nav);
-  /* The pill itself */
-  background: rgba(13, 11, 9, 0.82);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--border-subtle);
-  border-radius: 100px;
-  /* Top-edge refraction highlight */
-  box-shadow:
-    inset 0 1px 0 rgba(201, 168, 82, 0.08),
-    0 4px 24px rgba(13, 11, 9, 0.6),
-    0 1px 2px rgba(13, 11, 9, 0.8);
-  transition: box-shadow var(--t-mid);
-}
 
-.nav-inner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-}
-
-.nav-logo {
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ink-0);
-  letter-spacing: -0.02em;
-  padding: 4px 10px;
-  transition: color var(--t-fast);
-}
-
-.nav-logo .bracket {
-  color: var(--ink-3);
-  transition: color var(--t-fast);
-}
-
-.nav-logo:hover .bracket {
-  color: var(--accent);
-}
-
-.nav-links {
-  display: none;
-  gap: 2px;
-  align-items: center;
-}
-
-@media (min-width: 768px) {
-  .nav-links {
-    display: flex;
-  }
-}
-
-.nav-links a {
-  font-family: var(--font-jakarta), sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink-3);
-  padding: 6px 12px;
-  border-radius: 100px;
-  transition: color var(--t-fast), background var(--t-fast);
-  letter-spacing: -0.01em;
-}
-
-.nav-links a:hover {
-  color: var(--ink-1);
-  background: rgba(201, 168, 82, 0.06);
-}
-
-.nav-links a.is-active {
-  color: var(--accent);
-}
-
-.mobile-menu a.is-active {
-  color: var(--accent);
-}
-
-/* Resume CTA - "Button-in-Button" pill architecture */
-.nav-resume {
-  display: none;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-jakarta), sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 7px 7px 7px 14px;
-  background: var(--ink-0);
-  color: var(--surface-0);
-  border-radius: 100px;
-  letter-spacing: -0.01em;
-  transition: background var(--t-fast), transform var(--t-fast);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .nav-resume:hover {
-    background: var(--ink-1);
-    transform: scale(0.98);
-  }
-}
-
-.nav-resume:active {
-  transform: scale(0.96);
-}
-
-/* Nested arrow icon circle inside resume button */
-.nav-resume-arrow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(13, 11, 9, 0.12);
-  font-size: 11px;
-  transition: transform var(--t-fast), background var(--t-fast);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .nav-resume:hover .nav-resume-arrow {
-    background: rgba(var(--accent-rgb), 0.2);
-    color: var(--accent);
-    transform: translate(1px, -1px) scale(1.05);
-  }
-}
-
-@media (min-width: 768px) {
-  .nav-resume {
-    display: inline-flex;
-  }
-}
-
-/* Mobile toggle - hamburger -> X morphing lines */
-.mobile-toggle {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  transition: background var(--t-fast);
-}
-
-.mobile-toggle:hover {
-  background: rgba(201, 168, 82, 0.06);
-}
-
-.mobile-toggle span {
-  width: 18px;
-  height: 1.5px;
-  background: var(--ink-2);
-  transition: all 300ms var(--ease-out-expo);
-  transform-origin: center;
-}
-
-.mobile-toggle[aria-expanded="true"] span:first-child {
-  transform: translateY(3.25px) rotate(45deg);
-}
-
-.mobile-toggle[aria-expanded="true"] span:last-child {
-  transform: translateY(-3.25px) rotate(-45deg);
-}
-
-@media (min-width: 768px) {
-  .mobile-toggle {
-    display: none;
-  }
-}
-
-/* Mobile menu - screen-filling glass overlay */
-.mobile-menu {
-  position: fixed;
-  inset: 0;
-  background: rgba(13, 11, 9, 0.96);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  padding: 32px;
-  z-index: calc(var(--z-nav) + 1);
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  display: flex;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transform: translateY(-8px) scale(0.98);
-  transition-property: opacity, transform, backdrop-filter, visibility;
-  transition-duration: 400ms, 400ms, 400ms, 0s;
-  transition-timing-function: var(--ease-out-expo), var(--ease-out-expo), var(--ease-out-expo), linear;
-  transition-delay: 0s, 0s, 0s, 400ms;
-}
-
-.mobile-menu.open {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  transform: translateY(0) scale(1);
-  transition-delay: 0s;
-}
-
-.mobile-menu-close {
-  position: absolute;
-  top: 22px;
-  right: 22px;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  border: 1px solid rgba(var(--accent-rgb), 0.16);
-  border-radius: 50%;
-  background: rgba(13, 11, 9, 0.72);
-  color: var(--ink-1);
-  cursor: pointer;
-  transition: background var(--t-fast), border-color var(--t-fast);
-}
-
-.mobile-menu-close:hover {
-  background: rgba(var(--accent-rgb), 0.08);
-  border-color: rgba(var(--accent-rgb), 0.32);
-}
-
-.mobile-menu-close span {
-  position: absolute;
-  width: 18px;
-  height: 1.5px;
-  background: currentColor;
-}
-
-.mobile-menu-close span:first-child {
-  transform: rotate(45deg);
-}
-
-.mobile-menu-close span:last-child {
-  transform: rotate(-45deg);
-}
-
-.mobile-menu a {
-  font-family: var(--font-jakarta), sans-serif;
-  font-size: 28px;
-  font-weight: 600;
-  color: var(--ink-3);
-  padding: 14px 0;
-  letter-spacing: -0.03em;
-  transition: color var(--t-fast);
-}
-
-.mobile-menu a:hover {
-  color: var(--ink-0);
-}
 
 /* ============================================================
    HERO TEXT UTILITIES
@@ -721,8 +452,6 @@ select:focus-visible,
   flex-direction: column;
   justify-content: center;
   overflow: hidden;
-  /* Keep centered content clear of the floating nav pill */
-  padding-top: clamp(80px, 9vh, 116px);
 }
 
 /* JONATHAN split heading */
@@ -907,11 +636,9 @@ select:focus-visible,
   top: 0;
   height: 100vh;
   display: flex;
-  /* "safe" falls back to start-alignment when content overflows,
-     so nothing ever slides up underneath the floating nav pill */
-  align-items: safe center;
+  align-items: center;
   overflow: visible;
-  padding-top: clamp(96px, 11vh, 132px);
+  padding-top: 24px;
   padding-bottom: 24px;
 }
 
@@ -1337,11 +1064,9 @@ select:focus-visible,
   top: 0;
   height: 100vh;
   display: flex;
-  /* "safe" falls back to start-alignment when content overflows,
-     so nothing ever slides up underneath the floating nav pill */
-  align-items: safe center;
+  align-items: center;
   overflow: hidden;
-  padding-top: clamp(64px, 7vh, 96px);
+  padding-top: 24px;
   padding-bottom: 24px;
 }
 
@@ -2585,7 +2310,7 @@ canvas.glass-image-canvas {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding-top: 96px;
+  padding-top: 48px;
   padding-bottom: 48px;
 }
 

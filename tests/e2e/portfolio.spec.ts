@@ -51,11 +51,15 @@ async function waitForScrollToSettle(page: Page) {
   }));
 }
 
-async function keyboardNavigate(page: Page, hash: string) {
-  const link = page.locator(`#navbar a[href="${hash}"]`);
-  await expect(link).toBeVisible();
-  await link.focus();
-  await page.keyboard.press("Enter");
+async function scrollToChapter(page: Page, id: string) {
+  await page.evaluate((targetId) => {
+    const marker =
+      document.querySelector<HTMLElement>(`[data-scroll-landing="${targetId}"]`) ??
+      document.getElementById(targetId);
+    if (!marker) throw new Error(`Missing target for ${targetId}`);
+    const top = marker.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo({ top, behavior: "instant" });
+  }, id);
   await waitForScrollToSettle(page);
 }
 
@@ -234,7 +238,10 @@ test("desktop chapter landings and project rail stay inside the readable viewpor
     `Desktop scrub did not initialize: ${JSON.stringify(desktopRuntime)}`,
   ).toBe("true");
 
-  await keyboardNavigate(page, "#projects");
+  const heroProjects = page.locator("#hero-projects-btn");
+  await expect(heroProjects).toBeVisible();
+  await heroProjects.click();
+  await waitForScrollToSettle(page);
 
   const firstProject = page.locator('[data-project-id="neuro-genesis"]');
   await expect(firstProject).toHaveAttribute("aria-hidden", "false");
@@ -248,7 +255,6 @@ test("desktop chapter landings and project rail stay inside the readable viewpor
       return { top: bounds.top, bottom: bounds.bottom };
     };
 
-    const nav = rect("#navbar");
     const topbar = rect(".cs-topbar");
     const progress = rect(".cs-progress");
     const rail = rect(".cs-rail");
@@ -261,7 +267,6 @@ test("desktop chapter landings and project rail stay inside the readable viewpor
     return {
       scrollY: window.scrollY,
       viewportHeight: window.innerHeight,
-      navBottom: nav.bottom,
       trackTop: track.top,
       stickyViewportTop: viewport.top,
       landingMarkerTop: marker.top,
@@ -274,7 +279,7 @@ test("desktop chapter landings and project rail stay inside the readable viewpor
     };
   });
 
-  expect(projectGeometry.topbarTop).toBeGreaterThanOrEqual(projectGeometry.navBottom + 20);
+  expect(projectGeometry.topbarTop).toBeGreaterThanOrEqual(20);
   expect(projectGeometry.contentBottom).toBeLessThanOrEqual(projectGeometry.progressTop - 8);
   expect(projectGeometry.progressBottom).toBeLessThanOrEqual(projectGeometry.railTop);
   expect(
@@ -300,38 +305,35 @@ test("desktop chapter landings and project rail stay inside the readable viewpor
   expect(bandWidthTarget).toBeLessThan(0.93);
 });
 
-test("desktop navigation lands on settled Skills, About, and Contact tableaux", async ({ page }, testInfo) => {
+test("desktop chapter landings land on settled Skills, About, and Contact tableaux", async ({ page }, testInfo) => {
   test.skip(!DESKTOP_PROJECTS.has(testInfo.project.name));
   await openPortfolio(page);
 
-  await keyboardNavigate(page, "#skills");
+  await scrollToChapter(page, "skills");
   const skillsGeometry = await page.evaluate(() => {
-    const nav = document.querySelector<HTMLElement>("#navbar")!.getBoundingClientRect();
     const skills = document.querySelector<HTMLElement>('[data-chapter="skills"] .ed-heading')!;
     const skillsRect = skills.getBoundingClientRect();
     const aboutRect = document.querySelector<HTMLElement>(".about-runway .ed-heading")!.getBoundingClientRect();
     return {
-      navBottom: nav.bottom,
       skillsTop: skillsRect.top,
       skillsBottom: skillsRect.bottom,
       aboutTop: aboutRect.top,
       viewportHeight: window.innerHeight,
     };
   });
-  expect(skillsGeometry.skillsTop).toBeGreaterThanOrEqual(skillsGeometry.navBottom + 20);
+  expect(skillsGeometry.skillsTop).toBeGreaterThanOrEqual(20);
   expect(skillsGeometry.skillsBottom).toBeLessThanOrEqual(skillsGeometry.viewportHeight);
   expect(skillsGeometry.aboutTop).toBeGreaterThanOrEqual(skillsGeometry.viewportHeight - 1);
 
-  await keyboardNavigate(page, "#about");
+  await scrollToChapter(page, "about");
   const aboutGeometry = await page.locator(".about-runway .ed-heading").evaluate((heading) => {
-    const navBottom = document.querySelector<HTMLElement>("#navbar")!.getBoundingClientRect().bottom;
     const bounds = heading.getBoundingClientRect();
-    return { navBottom, top: bounds.top, bottom: bounds.bottom, viewportHeight: window.innerHeight };
+    return { top: bounds.top, bottom: bounds.bottom, viewportHeight: window.innerHeight };
   });
-  expect(aboutGeometry.top).toBeGreaterThanOrEqual(aboutGeometry.navBottom + 20);
+  expect(aboutGeometry.top).toBeGreaterThanOrEqual(20);
   expect(aboutGeometry.bottom).toBeLessThanOrEqual(aboutGeometry.viewportHeight);
 
-  await keyboardNavigate(page, "#contact");
+  await scrollToChapter(page, "contact");
   await expect(page.locator(".contact-heading")).toBeVisible();
   const contactGeometry = await page.locator(".contact-inner").evaluate((contact) => {
     const bounds = contact.getBoundingClientRect();
@@ -341,7 +343,7 @@ test("desktop navigation lands on settled Skills, About, and Contact tableaux", 
   expect(contactGeometry.bottom).toBeLessThanOrEqual(contactGeometry.viewportHeight);
 });
 
-test("touch layouts keep the full story in natural flow and restore menu focus", async ({ page }, testInfo) => {
+test("touch layouts keep the full story in natural flow", async ({ page }, testInfo) => {
   test.skip(!MOBILE_PROJECTS.has(testInfo.project.name));
   await openPortfolio(page);
 
@@ -382,44 +384,6 @@ test("touch layouts keep the full story in natural flow and restore menu focus",
     page.locator(".contact-heading"),
   ]) {
     await expectExposed(heading);
-  }
-
-  const toggle = page.locator("#mobile-toggle");
-  if (await toggle.isVisible()) {
-    await toggle.focus();
-    await page.keyboard.press("Enter");
-
-    const menu = page.locator("#mobile-menu");
-    const close = menu.locator(".mobile-menu-close");
-    await expect(menu).toHaveAttribute("aria-hidden", "false");
-    await expect
-      .poll(() => menu.evaluate((element) => {
-        const menuElement = element as HTMLElement;
-        const active = document.activeElement as HTMLElement | null;
-        const closeButton = menuElement.querySelector<HTMLElement>(".mobile-menu-close");
-        if (menuElement.contains(active)) return "inside";
-        return JSON.stringify({
-          active: active ? `${active.tagName.toLowerCase()}#${active.id}` : null,
-          menuInert: menuElement.inert,
-          menuHasInertAttribute: menuElement.hasAttribute("inert"),
-          closeInert: closeButton?.inert ?? null,
-          closeDisabled: closeButton?.matches(":disabled") ?? null,
-        });
-      }))
-      .toBe("inside");
-    expect(await page.locator("html").evaluate((element) => element.style.overflow)).toBe("hidden");
-    expect(await page.locator("body").evaluate((element) => element.style.overflow)).toBe("hidden");
-
-    await close.focus();
-    await page.keyboard.press("Shift+Tab");
-    await expect(menu.locator("a[href]").last()).toBeFocused();
-    await page.keyboard.press("Tab");
-    await expect(close).toBeFocused();
-    await page.keyboard.press("Escape");
-    await expect(menu).toHaveAttribute("aria-hidden", "true");
-    await expect(toggle).toBeFocused();
-    expect(await page.locator("html").evaluate((element) => element.style.overflow)).not.toBe("hidden");
-    expect(await page.locator("body").evaluate((element) => element.style.overflow)).not.toBe("hidden");
   }
 
   const skipLink = page.locator(".skip-link");
