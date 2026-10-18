@@ -456,7 +456,7 @@ select:focus-visible,
   overflow: hidden;
 }
 
-/* JONATHAN split heading */
+/* YATIN split heading */
 .hero-name-split {
   display: flex;
   flex-wrap: nowrap;
@@ -2289,6 +2289,7 @@ canvas.glass-image-canvas {
 /* Section shell */
 .sticky-deck-section {
   padding-bottom: 128px;
+  background: var(--surface-0);
 }
 
 /* Below 900px the project chapter does not run the desktop laptop-to-projects
@@ -2316,6 +2317,7 @@ canvas.glass-image-canvas {
   justify-content: center;
   padding-top: 48px;
   padding-bottom: 48px;
+  background: var(--surface-0);
 }
 
 .sd-header .ed-header {
@@ -2374,6 +2376,7 @@ canvas.glass-image-canvas {
 .cs-track {
   position: relative;
   width: 100%;
+  background: var(--surface-0);
 }
 
 .cs-viewport {

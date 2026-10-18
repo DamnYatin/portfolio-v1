@@ -113,7 +113,7 @@ test("a hard load renders one visual stage and hands off to the cinematic hero",
 
   await expect(loader).toHaveCount(0, { timeout: 15_000 });
   await expect(page.locator("html")).toHaveAttribute("data-motion-ready", "true");
-  await expect(page.getByRole("heading", { name: "Jonathan Jesni" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Yatin Mishra" })).toBeVisible();
   await expect(page.locator(".hero-buttons")).toBeVisible();
   await expect(stageCanvas).toHaveCount(initialCanvasCount);
 });
@@ -123,7 +123,7 @@ test("desktop-to-mobile resize clears magnetic hero glyph offsets", async ({ pag
   await openPortfolio(page);
 
   const glyphs = page.locator(".hero-char");
-  await expect(glyphs).toHaveCount(13);
+  await expect(glyphs).toHaveCount(11);
 
   const readOffsets = () => glyphs.evaluateAll((elements) =>
     elements.map((element) => {
@@ -243,7 +243,7 @@ test("desktop chapter landings and project rail stay inside the readable viewpor
   await heroProjects.click();
   await waitForScrollToSettle(page);
 
-  const firstProject = page.locator('[data-project-id="neuro-genesis"]');
+  const firstProject = page.locator('[data-project-id="mini-redis"]');
   await expect(firstProject).toHaveAttribute("aria-hidden", "false");
   await expect(firstProject).toBeVisible();
 
@@ -258,8 +258,8 @@ test("desktop chapter landings and project rail stay inside the readable viewpor
     const topbar = rect(".cs-topbar");
     const progress = rect(".cs-progress");
     const rail = rect(".cs-rail");
-    const visual = rect('[data-project-id="neuro-genesis"] .cs-visual-col');
-    const copy = rect('[data-project-id="neuro-genesis"] .cs-text');
+    const visual = rect('[data-project-id="mini-redis"] .cs-visual-col');
+    const copy = rect('[data-project-id="mini-redis"] .cs-text');
     const track = rect(".cs-track");
     const viewport = rect(".cs-viewport");
     const marker = rect(".chapter-marker--projects-landing");
@@ -287,22 +287,22 @@ test("desktop chapter landings and project rail stay inside the readable viewpor
     `Project landing geometry: ${JSON.stringify(projectGeometry)}`,
   ).toBeLessThanOrEqual(projectGeometry.viewportHeight - 20);
 
-  const firstRailButton = page.getByRole("button", { name: "Go to Neuro-Genesis Engine" });
-  const bandwidthRailButton = page.getByRole("button", { name: "Go to BandWidth" });
+  const firstRailButton = page.getByRole("button", { name: "Go to Mini-Redis" });
+  const gssocRailButton = page.getByRole("button", { name: "Go to GirlScript Summer of Code" });
   await firstRailButton.focus();
   await page.keyboard.press("End");
-  await expect(bandwidthRailButton).toBeFocused();
-  await expect(bandwidthRailButton).toHaveAttribute("aria-current", "true");
-  await expect(page.locator('[data-project-id="bandwidth"]')).toHaveAttribute("aria-hidden", "false");
+  await expect(gssocRailButton).toBeFocused();
+  await expect(gssocRailButton).toHaveAttribute("aria-current", "true");
+  await expect(page.locator('[data-project-id="gssoc"]')).toHaveAttribute("aria-hidden", "false");
 
-  const bandWidthTarget = await page.locator(".cs-track").evaluate((track) => {
+  const gssocTarget = await page.locator(".cs-track").evaluate((track) => {
     const bounds = track.getBoundingClientRect();
     const start = bounds.top + window.scrollY;
     const travel = Math.max(1, bounds.height - window.innerHeight);
     return (window.scrollY - start) / travel;
   });
-  expect(bandWidthTarget).toBeGreaterThan(0.78);
-  expect(bandWidthTarget).toBeLessThan(0.93);
+  expect(gssocTarget).toBeGreaterThan(0.78);
+  expect(gssocTarget).toBeLessThan(0.93);
 });
 
 test("desktop chapter landings land on settled Skills, About, and Contact tableaux", async ({ page }, testInfo) => {
@@ -370,7 +370,7 @@ test("touch layouts keep the full story in natural flow", async ({ page }, testI
   });
   expect(chapterTops).toEqual([...chapterTops].sort((a, b) => a - b));
 
-  for (const id of ["neuro-genesis", "double-unet", "bandwidth"]) {
+  for (const id of ["mini-redis", "termux-tools", "gssoc"]) {
     const project = page.locator(`[data-project-id="${id}"]`);
     await expect(project).not.toHaveAttribute("aria-hidden", "true");
     await expectExposed(project);
@@ -397,11 +397,11 @@ test("reduced motion preserves every chapter and its signature hero composition"
   await page.emulateMedia({ reducedMotion: "reduce" });
   await openPortfolio(page);
 
-  await expect(page.getByRole("heading", { name: "Jonathan Jesni" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Yatin Mishra" })).toBeVisible();
   await expect(page.locator(".hero-laptop-poster")).toBeVisible();
   await expect(page.locator(".hero-3d-layer canvas")).toHaveCount(0);
 
-  for (const id of ["neuro-genesis", "double-unet", "bandwidth"]) {
+  for (const id of ["mini-redis", "termux-tools", "gssoc"]) {
     const project = page.locator(`[data-project-id="${id}"]`);
     await expect(project).not.toHaveAttribute("aria-hidden", "true");
     await expectExposed(project);
@@ -426,7 +426,7 @@ test("an enhancement failure exposes complete content without stale sticky or hi
   });
   await expect(page.locator("html")).toHaveAttribute("data-motion-ready", "failed");
 
-  for (const id of ["neuro-genesis", "double-unet", "bandwidth"]) {
+  for (const id of ["mini-redis", "termux-tools", "gssoc"]) {
     const project = page.locator(`[data-project-id="${id}"]`);
     await expect(project).not.toHaveAttribute("aria-hidden", "true");
     await expectExposed(project);

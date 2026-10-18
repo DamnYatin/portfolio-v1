@@ -3,7 +3,7 @@ import Link from "next/link";
 import NotFoundReticle from "../components/NotFoundReticle";
 
 export const metadata: Metadata = {
-  title: "404 — Signal lost · Jonathan Jesni",
+  title: "404 — Signal lost · Yatin Mishra",
   robots: { index: false, follow: true },
 };
 

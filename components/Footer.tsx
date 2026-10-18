@@ -18,31 +18,25 @@ gsap.registerPlugin(ScrollToPlugin);
    --surface-0 so it reads as the floor of the page.
    ───────────────────────────────────────────────────────────────────── */
 
-/** Formats the viewer's local time as  HH:MM:SS GMT±H:MM */
-function formatLocalTime(d: Date): string {
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  const ss = String(d.getSeconds()).padStart(2, "0");
+/** Formats the time in Asia/Kolkata timezone (GMT+5:30) */
+function formatKolkataTime(d: Date): string {
+  const timeStr = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(d);
 
-  const offsetMins = -d.getTimezoneOffset(); // getTimezoneOffset returns inverse
-  const sign = offsetMins >= 0 ? "+" : "-";
-  const absH = Math.floor(Math.abs(offsetMins) / 60);
-  const absM = Math.abs(offsetMins) % 60;
-  const gmtOffset =
-    absM === 0
-      ? `GMT${sign}${absH}`
-      : `GMT${sign}${absH}:${String(absM).padStart(2, "0")}`;
-
-  return `${hh}:${mm}:${ss} ${gmtOffset}`;
+  return `${timeStr} (Asia/Kolkata · GMT+5:30)`;
 }
 
 function LocalClock() {
   const [time, setTime] = useState<string | null>(null);
 
   useEffect(() => {
-    // Defer the first tick out of the effect body (avoids a synchronous
-    // setState cascade), then tick every second.
-    const tick = () => setTime(formatLocalTime(new Date()));
+    // Defer the first tick out of the effect body, then tick every second.
+    const tick = () => setTime(formatKolkataTime(new Date()));
     const raf = requestAnimationFrame(tick);
     const id = setInterval(tick, 1000);
     return () => {
@@ -55,7 +49,7 @@ function LocalClock() {
   if (time === null) return null;
 
   return (
-    <span className="footer-clock" aria-label="Your local time" aria-live="off">
+    <span className="footer-clock" aria-label="Asia/Kolkata time" aria-live="off">
       {time}
     </span>
   );
@@ -72,21 +66,21 @@ export default function Footer() {
     <footer className="site-footer" id="footer">
       <div className="footer-row">
         <button type="button" className="footer-logo" onClick={backToTop} aria-label="Back to top">
-          <span className="bracket">&#123;</span>J<span className="bracket">&#125;</span>
+          <span className="bracket">&#123;</span>Y<span className="bracket">&#125;</span>
         </button>
 
         <span className="footer-status">
           <span className="footer-dot" aria-hidden="true" />
-          open to Junior AI/ML roles &amp; internships · Class of 2027
+          open to internships &amp; open-source collaboration · Class of 2029
         </span>
 
         <span className="footer-stack">
-          <HoverScrambleText text="Next.js · Three.js · GSAP · R3F" />
+          <HoverScrambleText text="Next.js · Three.js · GSAP" />
         </span>
       </div>
 
       <div className="footer-sub">
-        <span>© 2026 Jonathan Jesni</span>
+        <span>© 2026 Yatin Mishra</span>
         <LocalClock />
       </div>
     </footer>

@@ -207,9 +207,9 @@ export default function ContactSection({ animate = true }: ContactSectionProps) 
 
           {/* Sub-copy */}
           <p className="contact-text">
-            I&apos;m actively looking for internships and opportunities to build
-            impactful systems. Whether you have a question, a project idea, or
-            just want to connect, my inbox is open.
+            I&apos;m actively looking for internships and open-source opportunities.
+            Whether you have a question, a project idea, or just want to connect,
+            my inbox is open.
           </p>
 
           {/* Button grid — sequentially revealed by the secondary GSAP tween */}
@@ -224,7 +224,7 @@ export default function ContactSection({ animate = true }: ContactSectionProps) 
             }}
           >
             <a
-              href="mailto:jonathan.jesni.m@gmail.com"
+              href="mailto:yatinmishra911@gmail.com"
               className="contact-link"
               id="contact-email-btn"
             >
@@ -233,18 +233,19 @@ export default function ContactSection({ animate = true }: ContactSectionProps) 
             </a>
 
             <a
-              href="https://github.com/Jonathan-Jesni?tab=repositories"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="#work"
               className="contact-link"
               id="contact-projects-btn"
             >
-              <GitHubIcon />
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+              </svg>
               <HoverScrambleText text="View Projects" />
             </a>
 
             <a
-              href="https://www.linkedin.com/in/jonathan-jesni/"
+              href="https://www.linkedin.com/in/yatinmishra1"
               target="_blank"
               rel="noopener noreferrer"
               className="contact-link"
@@ -255,7 +256,7 @@ export default function ContactSection({ animate = true }: ContactSectionProps) 
             </a>
 
             <a
-              href="/assets/Jonathan_Resume.pdf"
+              href="/Yatin_Mishra_Resume.pdf"
               target="_blank"
               rel="noopener noreferrer"
               className="contact-link"
@@ -263,6 +264,30 @@ export default function ContactSection({ animate = true }: ContactSectionProps) 
             >
               <DownloadIcon />
               <HoverScrambleText text="View Resume ↗" />
+            </a>
+          </div>
+
+          <div style={{ marginTop: "24px", textAlign: "center" }}>
+            <a
+              href="https://github.com/DamnYatin"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                color: "var(--ink-3)",
+                fontSize: "12px",
+                fontFamily: "var(--font-jetbrains), monospace",
+                letterSpacing: "0.05em",
+                textDecoration: "none",
+                transition: "color 0.2s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--ink-1)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--ink-3)")}
+            >
+              <GitHubIcon />
+              <span>github.com/DamnYatin ↗</span>
             </a>
           </div>
         </div>

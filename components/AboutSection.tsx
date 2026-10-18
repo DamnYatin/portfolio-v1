@@ -18,18 +18,19 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
 // while BioWords still splits the rest at the word level.
 const BIO_PARAGRAPHS = [
   <>
-    I&apos;m a final-year Computer Science student at IIIT Pune who builds real tools, not just
-    coursework. My focus areas are <strong>AI/ML</strong>, <strong>computer vision</strong>, and{" "}
-    <strong>systems design</strong>, and I gravitate toward projects that solve practical, tangible
-    problems.
+    I&apos;m a second-year Computer Science student at Ramdeobaba University, Nagpur, who likes
+    working close to the metal and close to the community. I build tools in <strong>Rust</strong>,
+    like an async Redis CLI on Tokio, and I maintain an open-source directory of{" "}
+    <strong>400+ security tools</strong> that has earned 320+ stars.
   </>,
   <>
-    Whether it&apos;s training a dual-stacked U-Net for medical image segmentation, generating
-    synthetic disaster scene data in Blender, or engineering a deterministic document converter, I focus
-    on software that <strong>works in the real world</strong>.
+    Since August 2026 I&apos;ve been contributing to open source through GirlScript Summer of Code:
+    shipping features, fixing bugs, and learning from maintainers&apos; code reviews. I care about{" "}
+    <strong>clean architecture</strong>, modular code, and tools other developers can actually use.
   </>,
   <>
-    Final-year CS @ IIIT Pune (Class of 2027) · open to <strong>Junior AI/ML roles &amp; internships</strong>.
+    Second-year CS @ Ramdeobaba University (Class of 2029) · open to{" "}
+    <strong>internships &amp; open-source collaboration</strong>.
   </>,
 ];
 

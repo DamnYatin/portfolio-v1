@@ -6,11 +6,11 @@ brand
 
 ## Users
 
-Recruiters, hiring managers, and technical reviewers evaluating Jonathan for junior AI/ML and AI systems engineering roles. They need to understand his role fit, strongest evidence, and technical depth quickly, while technical peers should still be able to explore how the work was built.
+Recruiters, hiring managers, and technical reviewers evaluating Yatin for software engineering and open-source roles. They need to understand his role fit, strongest evidence, and technical depth quickly, while technical peers should still be able to explore how the work was built.
 
 ## Product Purpose
 
-Present Jonathan as an AI systems engineer who can take ambitious machine-learning ideas from research through implementation and deployment. Success means a visitor can identify the three strongest projects, understand their measurable outcomes, and reach Jonathan or his resume within 60 to 90 seconds without losing the memorable interactive experience.
+Present Yatin as a developer who builds fast developer tools in Rust and actively contributes to open source. Success means a visitor can identify the three strongest projects, understand their measurable outcomes, and reach Yatin or his resume within 60 to 90 seconds without losing the memorable interactive experience.
 
 ## Brand Personality
 

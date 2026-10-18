@@ -37,42 +37,7 @@ import { useTheme } from "../components/theme/ThemeProvider";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const SKILL_PILLS = [
-  "Python",
-  "Java",
-  "C/C++",
-  "SQL",
-  "Dart",
-  "Flask",
-  "Flutter",
-  "Deep Learning",
-  "Computer Vision",
-  "Recommender Systems",
-  "LLMs / GenAI",
-  "YOLO",
-  "Semantic Segmentation",
-  "PyTorch",
-  "TensorFlow",
-  "Keras",
-  "OpenCV",
-  "NumPy",
-  "Pandas",
-  "Blender",
-  "FastAPI",
-  "Docker",
-  "Google Cloud",
-  "GPU Computing",
-  "React.js",
-  "JavaScript",
-  "HTML5",
-  "CSS3",
-  "Tailwind CSS",
-  "Agentic AI",
-  "CI/CD",
-  "REST APIs",
-  "LangChain",
-  "Hugging Face",
-] as const;
+import { SKILL_PILLS } from "../data/content";
 
 const CHAPTER_TARGETS = [
   "projects",
@@ -338,8 +303,7 @@ export default function Home() {
                   letterSpacing: "-0.01em",
                 }}
               >
-                Technologies and frameworks I use to engineer robust, scalable
-                systems.
+                Tools and languages I use to build and ship software.
               </p>
 
               <div className="sp-reveal" data-chapter-body>

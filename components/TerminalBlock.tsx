@@ -2,54 +2,22 @@
 
 import React, { useEffect, useRef, useState, startTransition } from "react";
 
-/* ------------------------------------------------------------------
-   The full command that gets typed out character by character.
------------------------------------------------------------------- */
-const COMMAND = "node developer.js";
-
-/* ------------------------------------------------------------------
-   Strict JSON output — quoted keys (blue), string values (green),
-   structural punctuation (grey).
------------------------------------------------------------------- */
-const G = ({ children }: { children: React.ReactNode }) => (
-  <span className="term-punct">{children}</span>
-);
-
-function JsonOutput() {
-  return (
-    <pre className="term-output">
-      <G>{'{'}</G>{
-        '\n'}
-      {'  '}<span className="term-key">&quot;current&quot;</span><G>{': '}</G><span className="term-str">&quot;B.Tech CSE, IIIT Pune&quot;</span><G>{','}</G>{
-        '\n'}
-      {'  '}<span className="term-key">&quot;year&quot;</span><G>{': '}</G><span className="term-str">&quot;Final Year&quot;</span><G>{','}</G>{
-        '\n'}
-      {'  '}<span className="term-key">&quot;location&quot;</span><G>{': '}</G><span className="term-str">&quot;Pune, India / Muscat, Oman&quot;</span><G>{','}</G>{
-        '\n'}
-      {'  '}<span className="term-key">&quot;focus&quot;</span><G>{': ['}</G>{
-        '\n'}
-      {'    '}<span className="term-str">&quot;AI/ML&quot;</span><G>{','}</G>{
-        '\n'}
-      {'    '}<span className="term-str">&quot;Computer Vision&quot;</span><G>{','}</G>{
-        '\n'}
-      {'    '}<span className="term-str">&quot;Systems&quot;</span>{
-        '\n'}
-      {'  '}<G>{'],'}</G>{
-        '\n'}
-      {'  '}<span className="term-key">&quot;status&quot;</span><G>{': '}</G><span className="term-str">&quot;open to internships&quot;</span>{
-        '\n'}
-      <G>{'}'}</G>
-    </pre>
-  );
+interface Step {
+  cmd: string;
+  output: string;
 }
 
-/* ------------------------------------------------------------------
-   TerminalBlock
------------------------------------------------------------------- */
+const STEPS: Step[] = [
+  { cmd: "whoami", output: "yatin-mishra" },
+  { cmd: "cat stack.txt", output: "rust · c++ · js" },
+  { cmd: "git log --oneline", output: "feat: ship it" },
+];
+
 export default function TerminalBlock() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [command, setCommand] = useState("");
-  const [showOutput, setShowOutput] = useState(false);
+  const [completedSteps, setCompletedSteps] = useState<number>(0);
+  const [currentText, setCurrentText] = useState("");
+  const [showCurrentOutput, setShowCurrentOutput] = useState(false);
   const [started, setStarted] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -74,40 +42,63 @@ export default function TerminalBlock() {
           observer.disconnect();
         }
       },
-      { threshold: 0.4 }
+      { threshold: 0.3 }
     );
 
     observer.observe(el);
     return () => observer.disconnect();
   }, [started]);
 
-  /* ---- Typewriter: runs once `started` flips to true ---- */
+  /* ---- Typewriter: runs through the sequence ---- */
   useEffect(() => {
     if (!started) return;
 
-    /* Under reduced motion: show full command and output instantly */
     if (reducedMotion) {
       startTransition(() => {
-        setCommand(COMMAND);
-        setShowOutput(true);
+        setCompletedSteps(STEPS.length);
+        setCurrentText("");
+        setShowCurrentOutput(true);
       });
       return;
     }
 
-    let charIndex = 0;
+    let isCancelled = false;
 
-    const interval = setInterval(() => {
-      charIndex += 1;
-      setCommand(COMMAND.slice(0, charIndex));
+    const runSequence = async () => {
+      for (let i = 0; i < STEPS.length; i++) {
+        if (isCancelled) break;
+        const targetCmd = STEPS[i].cmd;
 
-      if (charIndex === COMMAND.length) {
-        clearInterval(interval);
-        setTimeout(() => setShowOutput(true), 500);
+        // Type command
+        for (let c = 1; c <= targetCmd.length; c++) {
+          if (isCancelled) break;
+          await new Promise((res) => setTimeout(res, 75));
+          if (isCancelled) break;
+          setCurrentText(targetCmd.slice(0, c));
+        }
+
+        // Pause before showing output
+        await new Promise((res) => setTimeout(res, 300));
+        if (isCancelled) break;
+        setShowCurrentOutput(true);
+
+        // Pause before advancing to next command
+        await new Promise((res) => setTimeout(res, 500));
+        if (isCancelled) break;
+        setCompletedSteps(i + 1);
+        setCurrentText("");
+        setShowCurrentOutput(false);
       }
-    }, 95); // ~95 ms per character — deliberate, readable pace
+    };
 
-    return () => clearInterval(interval);
+    runSequence();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [started, reducedMotion]);
+
+  const allDone = completedSteps >= STEPS.length;
 
   return (
     <div ref={containerRef} className="term-shell">
@@ -119,29 +110,48 @@ export default function TerminalBlock() {
             <span className="term-dot term-dot--yellow" />
             <span className="term-dot term-dot--green" />
           </div>
-          <span className="term-title">guest@jonathan: ~</span>
+          <span className="term-title">guest@yatin: ~</span>
         </div>
 
         {/* ---- Body ---- */}
-        <div className={`term-body${showOutput ? " is-expanded" : ""}`}>
-          {/* Command line being typed */}
-          <div className="term-line">
-            <span className="term-prompt-arrow">➡︎</span>
-            <span className="term-prompt-dir">~</span>
-            <span className="term-typed">{command}</span>
-            {!showOutput && <span className="terminal-cursor" aria-hidden="true" />}
-          </div>
-
-          {/* Output: revealed after typing finishes */}
-          {showOutput && (
-            <div className="fade-in-fast">
-              <JsonOutput />
-              {/* Second prompt line at the bottom */}
-              <div className="term-line term-line--mt">
+        <div className="term-body is-expanded">
+          {/* Previously completed steps */}
+          {STEPS.slice(0, completedSteps).map((step, idx) => (
+            <div key={idx} style={{ marginBottom: 12 }}>
+              <div className="term-line">
                 <span className="term-prompt-arrow">➡︎</span>
                 <span className="term-prompt-dir">~</span>
-                <span className="terminal-cursor" aria-hidden="true" />
+                <span className="term-typed">{step.cmd}</span>
               </div>
+              <div className="term-output" style={{ margin: "4px 0 0 16px" }}>
+                <span className="term-str">&quot;{step.output}&quot;</span>
+              </div>
+            </div>
+          ))}
+
+          {/* Currently typing step */}
+          {!allDone && (
+            <div>
+              <div className="term-line">
+                <span className="term-prompt-arrow">➡︎</span>
+                <span className="term-prompt-dir">~</span>
+                <span className="term-typed">{currentText}</span>
+                {!showCurrentOutput && <span className="terminal-cursor" aria-hidden="true" />}
+              </div>
+              {showCurrentOutput && (
+                <div className="term-output" style={{ margin: "4px 0 0 16px" }}>
+                  <span className="term-str">&quot;{STEPS[completedSteps].output}&quot;</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Final prompt with active cursor when sequence completes */}
+          {allDone && (
+            <div className="term-line term-line--mt">
+              <span className="term-prompt-arrow">➡︎</span>
+              <span className="term-prompt-dir">~</span>
+              <span className="terminal-cursor" aria-hidden="true" />
             </div>
           )}
         </div>

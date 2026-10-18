@@ -503,7 +503,7 @@ export default function PreLoader({ onComplete }: PreLoaderProps) {
            releases the `transform: none !important` failsafe on the name
            parts — if it flips after the overlay is gone, the settled name
            is visible for a few frames, then snaps to the hidden entrance
-           pose (the mobile "Jonathan Jesni flash"). setIsComplete stays
+           pose (the mobile "Yatin Mishra flash"). setIsComplete stays
            at fade end: it unmounts the overlay (`isComplete` render gate),
            which would kill the fade if fired here. */
         fireHandoff();

@@ -17,7 +17,7 @@ import "./evolution.css";
 
 // Absolute-URL base for canonical links, OG/Twitter images, and the sitemap.
 // Env var wins on Vercel previews; falls back to the production domain.
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://jonathanjesni.com";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://yatinmishra.dev";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -45,36 +45,35 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   alternates: { canonical: "/" },
-  title: "Jonathan Jesni: AI & Systems Developer",
+  title: "Yatin Mishra: Rust & Open-Source Developer",
   description:
-    "Jonathan Jesni's developer portfolio: AI/ML tools, computer vision, and real-world software engineering.",
+    "Second-year CS student at Ramdeobaba University, Nagpur. I build fast developer tools in Rust, maintain open-source security tooling, and contribute to open source through GirlScript Summer of Code.",
   keywords: [
-    "Jonathan Jesni",
-    "AI developer",
-    "systems developer",
-    "frontend engineer",
-    "machine learning portfolio",
-    "deep learning",
-    "recommendation systems",
-    "computer vision",
-    "document processing",
-    "Next.js portfolio",
+    "Yatin Mishra",
+    "Rust Developer",
+    "Open Source Developer",
+    "GirlScript Summer of Code",
+    "Tokio",
+    "Termux Tools",
+    "Ramdeobaba University",
+    "Systems Programming",
+    "CLI Tools",
+    "C++",
+    "Linux",
   ],
   openGraph: {
-    title: "Jonathan Jesni: AI & Systems Developer",
+    title: "Yatin Mishra: Rust & Open-Source Developer",
     description:
-      "Jonathan Jesni's developer portfolio: AI/ML tools, computer vision, and real-world software engineering.",
+      "Second-year CS student at Ramdeobaba University, Nagpur. I build fast developer tools in Rust, maintain open-source security tooling, and contribute to open source through GirlScript Summer of Code.",
     type: "website",
     url: "/",
-    siteName: "Jonathan Jesni",
-    // og:image is injected automatically by app/opengraph-image.jpeg
+    siteName: "Yatin Mishra",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Jonathan Jesni: AI & Systems Developer",
+    title: "Yatin Mishra: Rust & Open-Source Developer",
     description:
-      "AI/ML tools, computer vision, and real-world software engineering projects by Jonathan Jesni.",
-    // twitter:image is injected automatically by app/twitter-image.jpeg
+      "Second-year CS student at Ramdeobaba University, Nagpur. I build fast developer tools in Rust, maintain open-source security tooling, and contribute to open source through GirlScript Summer of Code.",
   },
 };
 
@@ -126,16 +125,16 @@ if (!location.hash) window.scrollTo(0, 0);`}
               __html: JSON.stringify({
                 "@context": "https://schema.org",
                 "@type": "Person",
-                name: "Jonathan Jesni",
+                name: "Yatin Mishra",
                 url: SITE_URL,
-                jobTitle: "AI & Systems Developer",
+                jobTitle: "Rust & Open-Source Developer",
                 alumniOf: {
                   "@type": "CollegeOrUniversity",
-                  name: "Indian Institute of Information Technology, Pune",
+                  name: "Ramdeobaba University, Nagpur",
                 },
                 sameAs: [
-                  "https://github.com/Jonathan-Jesni",
-                  "https://www.linkedin.com/in/jonathan-jesni/",
+                  "https://github.com/DamnYatin",
+                  "https://www.linkedin.com/in/yatinmishra1",
                 ],
               }),
             }}

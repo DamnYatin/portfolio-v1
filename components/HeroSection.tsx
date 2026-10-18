@@ -33,8 +33,8 @@ const InteractiveModel = dynamic(() => import("./InteractiveModel"), { ssr: fals
 /* Each name renders as its own masked line: per-char spans keep the
    magnetic repulsion alive while the line-level span is what the
    opposing entrance + scroll-out parallax translate. */
-const FIRST_NAME = ["J", "o", "n", "a", "t", "h", "a", "n"];
-const LAST_NAME = ["J", "e", "s", "n", "i"];
+const FIRST_NAME = ["Y", "a", "t", "i", "n"];
+const LAST_NAME = ["M", "i", "s", "h", "r", "a"];
 
 interface HeroSectionProps {
   animate?: boolean;
@@ -357,7 +357,7 @@ export default function HeroSection({
           },
         });
 
-        // 1. "Jonathan" rises from behind baseline
+        // 1. "Yatin" rises from behind baseline
         tl.to(
           ".name-part-1",
           {
@@ -370,7 +370,7 @@ export default function HeroSection({
           0
         );
 
-        // 2. "Jesni" rises from behind baseline
+        // 2. "Mishra" rises from behind baseline
         tl.to(
           ".name-part-2",
           {
@@ -653,11 +653,10 @@ export default function HeroSection({
             <div className="hero-text-col" style={{ pointerEvents: "auto" }}>
               {/* Stacked, masked name: each line lives in an
                   overflow-hidden wrapper so the opposing entrance
-                  (Jonathan up / Jesni down) reveals through a clean
-                  mask. The masks release after the intro lands. */}
+                  reveals through a clean mask. The masks release after the intro lands. */}
               <h1
                 className="hero-name-split"
-                aria-label="Jonathan Jesni"
+                aria-label="Yatin Mishra"
                 style={{ flexDirection: "column" }}
               >
                 <div className="hero-name-mask" style={{ overflow: "hidden" }}>
@@ -700,11 +699,11 @@ export default function HeroSection({
 
               <div ref={subContentRef} className="hero-sub-content">
                 <h2 className="hero-tagline">
-                  I engineer <TerminalHighlight delay={1.1} color="var(--highlight-gold)" animate={animate}>self-modifying models</TerminalHighlight>, <TerminalHighlight delay={1.35} color="var(--highlight-gold)" animate={animate}>computer vision pipelines</TerminalHighlight>, and <TerminalHighlight delay={1.6} color="var(--highlight-blue)" animate={animate}>multi-agent infrastructure</TerminalHighlight> <em>from training through deployment</em>.
+                  I build <TerminalHighlight delay={1.1} color="var(--highlight-gold)" animate={animate}>high-performance Rust tools</TerminalHighlight>, <TerminalHighlight delay={1.35} color="var(--highlight-gold)" animate={animate}>open-source security tooling</TerminalHighlight>, and <TerminalHighlight delay={1.6} color="var(--highlight-blue)" animate={animate}>clean, modular code</TerminalHighlight> <em>from first commit to community.</em>
                 </h2>
 
                 <p className="hero-sub">
-                  Final-year CS at IIIT Pune, Class of 2027. Open to <CircuitUnderline delay={1.85} color="var(--highlight-gold)" animate={animate}>junior AI/ML roles</CircuitUnderline> and <TerminalHighlight delay={2.1} color="var(--highlight-blue)" animate={animate}>internships</TerminalHighlight>.
+                  Second-year CS at Ramdeobaba University, Nagpur, Class of 2029. Open-source contributor with GirlScript Summer of Code 2026, open to <TerminalHighlight delay={2.1} color="var(--highlight-blue)" animate={animate}>internships</TerminalHighlight> and collaboration.
                 </p>
 
                 <div className="hero-buttons">
@@ -733,7 +732,7 @@ export default function HeroSection({
                     <HoverScrambleText text="Explore featured work" />
                   </a>
                   <a
-                    href="https://www.linkedin.com/in/jonathan-jesni/"
+                    href="https://www.linkedin.com/in/yatinmishra1"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-outline"
@@ -743,7 +742,7 @@ export default function HeroSection({
                     <HoverScrambleText text="Connect on LinkedIn" />
                   </a>
                   <a
-                    href="/assets/Jonathan_Resume.pdf"
+                    href="/Yatin_Mishra_Resume.pdf"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-outline"
@@ -759,12 +758,32 @@ export default function HeroSection({
               <div className="hero-laptop-poster" aria-hidden="true">
                 <div className="hero-laptop-poster__lid">
                   <div className="hero-laptop-poster__screen">
-                    <Image
-                      src="/assets/Neuro-genesis/title-card.jpg"
-                      alt=""
-                      fill
-                      sizes="(min-width: 900px) 42vw, 82vw"
-                    />
+                    <div style={{
+                      padding: "24px 28px",
+                      fontFamily: "var(--font-jetbrains)",
+                      fontSize: "13px",
+                      lineHeight: "1.6",
+                      color: "var(--ink-1)",
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center",
+                      gap: "6px",
+                      background: "var(--surface-0)",
+                    }}>
+                      <div style={{ display: "flex", gap: "6px", marginBottom: "8px", alignItems: "center" }}>
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#EF4444" }} />
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#EAB308" }} />
+                        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#22C55E" }} />
+                        <span style={{ fontSize: "11px", color: "var(--ink-2)", marginLeft: "8px" }}>yatin@arch: ~/mini-redis</span>
+                      </div>
+                      <p><span style={{ color: "var(--highlight-gold)" }}>$</span> cargo run --release</p>
+                      <p style={{ color: "var(--ink-2)", fontSize: "11px" }}>[tokio-runtime] mini-redis ready</p>
+                      <p><span style={{ color: "var(--highlight-blue)" }}>&gt;</span> SET key &quot;fast-reliable-systems&quot;</p>
+                      <p style={{ color: "#22C55E" }}>OK</p>
+                      <p><span style={{ color: "var(--highlight-blue)" }}>&gt;</span> GET key</p>
+                      <p style={{ color: "var(--highlight-gold)" }}>&quot;fast-reliable-systems&quot;</p>
+                    </div>
                   </div>
                 </div>
                 <div className="hero-laptop-poster__base" />

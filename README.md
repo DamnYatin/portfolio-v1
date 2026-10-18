@@ -1,10 +1,10 @@
-# Jonathan Jesni - Portfolio
+# Yatin Mishra - Portfolio
 
 An interactive 3D developer portfolio. The hero is a scroll-driven WebGL laptop that "boots"
 as you scroll and then dissolves - pixel-for-pixel - into the live Projects section, backed by
 cinematic shader transitions and physics-based interactions.
 
-🌐 **Live:** [jonathanjesni.com](https://jonathanjesni.com)
+🌐 **GitHub:** [github.com/DamnYatin](https://github.com/DamnYatin)
 
 ## Highlights
 
@@ -15,10 +15,9 @@ cinematic shader transitions and physics-based interactions.
   authored as custom GLSL shaders.
 - **Physics & motion** - a Matter.js "gravity pit" skills cloud, Lenis smooth scrolling, and a
   GSAP + ScrollTrigger timeline choreographing every section boundary.
-- **Detection-reticle cursor** - a custom object-detection-style cursor (nodding to the CV work
-  in the projects): corner brackets that snap to frame interactive targets with a scrambling
-  `[ LABEL · 0.9X ]` confidence readout and a live pointer dot. Fine-pointer only, and disabled
-  entirely under `prefers-reduced-motion`.
+- **Detection-reticle cursor** - a custom interactive cursor with corner brackets that snap to frame
+  interactive targets with a scrambling `[ LABEL · 0.9X ]` confidence readout and a live pointer dot.
+  Fine-pointer only, and disabled entirely under `prefers-reduced-motion`.
 - **Mobile-tuned experience** - phones get a terminal-style boot preloader and a name-split
   scroll hero in place of the WebGL laptop, keeping the entrance cinematic without the GPU cost.
 - **Built to behave** - adaptive DPR, `prefers-reduced-motion` fallbacks, a WebGL-unsupported
@@ -51,14 +50,13 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run start` | Serve the production build           |
 | `npm run lint`  | Run ESLint                           |
 | `npm run test:e2e` | Run Playwright end-to-end tests   |
-| `npm run capture:header` | Regenerate the laptop-screen texture (`bg.jpg`) from the live Projects header — run after any recolor or header change |
-| `npm run images:downscale` | Downscale project images with sharp |
+| `npm run capture:header` | Regenerate the laptop-screen texture (`bg.jpg`) from the live Projects header |
 
 ## Configuration
 
 `NEXT_PUBLIC_SITE_URL` sets the absolute base for canonical links, Open Graph / Twitter image
-URLs, and the sitemap. It falls back to `https://jonathanjesni.com`, so set it per environment
-(e.g. your Vercel preview URL) when deploying.
+URLs, and the sitemap. It falls back to `https://github.com/DamnYatin`, so set it per environment
+when deploying.
 
 ```bash
 # .env.local
@@ -67,14 +65,10 @@ NEXT_PUBLIC_SITE_URL=https://your-domain.com
 
 ## Customizing Content
 
-- **Projects & "Currently Building" cards:** `lib/data.ts` (`PROJECTS` and `BUILDING`). Each
-  project defines its copy, tags, links, carousel `images` + `imageAlts`, and metric.
-- **Project images:** `public/assets/<Project>/…` (referenced from `lib/data.ts`).
+- **Centralized Content:** `data/content.ts` (Personal details, education, featured projects, experience, building cards, skills).
 - **Favicon & social cards:** `app/icon.png`, `app/apple-icon.png`, `app/opengraph-image.jpeg`,
   `app/twitter-image.jpeg` (with `*.alt.txt` for image alt text).
-- **Resume link:** a Google Drive URL hardcoded on the "Resume" buttons in `app/page.tsx`
-  (desktop nav + mobile menu), `components/HeroSection.tsx`, and `components/ContactSection.tsx`.
-- **Site metadata:** `app/layout.tsx`. SEO routes: `app/robots.ts`, `app/sitemap.ts`.
+- **Resume link:** `public/Yatin_Mishra_Resume.pdf`.
 
 ## Project Structure
 

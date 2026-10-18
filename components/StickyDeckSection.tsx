@@ -24,11 +24,9 @@ const INLINE_TILES = 3;
 
 /* ─── Accent hues per project ─────────────────────────────────────── */
 const CARD_HUES: Record<string, string> = {
-  "neuro-genesis":  "188, 45%, 52%",  /* cyan  (01) */
-  "double-unet":    "38, 56%, 52%",   /* gold  (02) */
-  bandwidth:        "209, 34%, 64%",  /* blue  (03) */
-  synthrescue:      "44, 60%, 56%",   /* gold  (04) */
-  ludex:            "214, 30%, 62%",  /* blue  (05) */
+  "mini-redis":   "28, 80%, 54%",   /* warm Rust amber (01) */
+  "termux-tools": "142, 65%, 45%",  /* security green  (02) */
+  "gssoc":        "210, 70%, 55%",  /* open-source blue(03) */
 };
 
 const N = FEATURED_PROJECTS.length;
@@ -438,8 +436,10 @@ function ProjectVisual({ project, hue, priority, eager, onOpen }: {
   eager: boolean;
   onOpen: (start: number) => void;
 }) {
-  const images = (project.images ?? []) as readonly string[];
-  const alts = (project.imageAlts ?? []) as readonly string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const p = project as any;
+  const images = (p.images ?? []) as readonly string[];
+  const alts = (p.imageAlts ?? []) as readonly string[];
   const [cur, setCur] = useState(0);
   const multi = images.length > 1;
 
@@ -551,6 +551,167 @@ function ProjectVisual({ project, hue, priority, eager, onOpen }: {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   PROJECT VISUAL CARD — theme-aware, CSS/SVG interactive cards
+   ═══════════════════════════════════════════════════════════════════ */
+function ProjectVisualCard({ project, hue }: { project: Project; hue: string }) {
+  if (project.id === "mini-redis") {
+    return (
+      <div
+        className="cs-mock-terminal mono"
+        style={{
+          background: "var(--surface-1)",
+          border: "1px solid var(--border-default)",
+          borderRadius: "12px",
+          padding: "24px 28px",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          boxShadow: "0 24px 48px rgba(0,0,0,0.18)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border-hairline)", paddingBottom: "12px", marginBottom: "16px" }}>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#EF4444" }} />
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#EAB308" }} />
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#22C55E" }} />
+          </div>
+          <span style={{ fontSize: "11px", color: "var(--ink-2)" }}>mini-redis-cli (v0.1.0)</span>
+          <span style={{ fontSize: "10px", color: "var(--highlight-gold)", border: "1px solid var(--border-hairline)", padding: "2px 6px", borderRadius: "4px" }}>RUST · TOKIO</span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "13px", lineHeight: "1.6" }}>
+          <div>
+            <span style={{ color: "var(--highlight-gold)" }}>&gt; </span>
+            <span style={{ color: "var(--ink-1)" }}>SET session:yatin &quot;active_contributor&quot;</span>
+            <div style={{ color: "#22C55E", paddingLeft: "16px", fontWeight: "600" }}>OK</div>
+          </div>
+          <div>
+            <span style={{ color: "var(--highlight-gold)" }}>&gt; </span>
+            <span style={{ color: "var(--ink-1)" }}>GET session:yatin</span>
+            <div style={{ color: "var(--highlight-blue)", paddingLeft: "16px" }}>&quot;active_contributor&quot;</div>
+          </div>
+          <div>
+            <span style={{ color: "var(--highlight-gold)" }}>&gt; </span>
+            <span style={{ color: "var(--ink-1)" }}>PING</span>
+            <div style={{ color: "var(--ink-2)", paddingLeft: "16px" }}>PONG (0.18ms non-blocking async I/O)</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border-hairline)", paddingTop: "12px", marginTop: "16px", fontSize: "11px", color: "var(--ink-2)" }}>
+          <span>127.0.0.1:6379</span>
+          <span style={{ color: "#22C55E" }}>● ASYNC_READY</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (project.id === "termux-tools") {
+    return (
+      <div
+        className="cs-stat-card mono"
+        style={{
+          background: "var(--surface-1)",
+          border: "1px solid var(--border-default)",
+          borderRadius: "12px",
+          padding: "24px 28px",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          boxShadow: "0 24px 48px rgba(0,0,0,0.18)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-hairline)", paddingBottom: "12px" }}>
+          <span style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.1em", color: "var(--highlight-gold)" }}>SECURITY DIRECTORY</span>
+          <span style={{ fontSize: "11px", color: "var(--ink-2)" }}>TERMUX · MOBILE PENTEST</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", margin: "18px 0" }}>
+          <div style={{ background: "var(--surface-0)", padding: "14px 8px", borderRadius: "8px", border: "1px solid var(--border-hairline)", textAlign: "center" }}>
+            <div style={{ fontSize: "24px", fontWeight: "800", color: "var(--ink-0)", lineHeight: 1.1 }}>400+</div>
+            <div style={{ fontSize: "10px", color: "var(--ink-2)", marginTop: "4px" }}>Tools</div>
+          </div>
+          <div style={{ background: "var(--surface-0)", padding: "14px 8px", borderRadius: "8px", border: "1px solid var(--border-hairline)", textAlign: "center" }}>
+            <div style={{ fontSize: "24px", fontWeight: "800", color: "var(--highlight-gold)", lineHeight: 1.1 }}>320+</div>
+            <div style={{ fontSize: "10px", color: "var(--ink-2)", marginTop: "4px" }}>Stars</div>
+          </div>
+          <div style={{ background: "var(--surface-0)", padding: "14px 8px", borderRadius: "8px", border: "1px solid var(--border-hairline)", textAlign: "center" }}>
+            <div style={{ fontSize: "24px", fontWeight: "800", color: "var(--highlight-blue)", lineHeight: 1.1 }}>30+</div>
+            <div style={{ fontSize: "10px", color: "var(--ink-2)", marginTop: "4px" }}>Forks</div>
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: "10px", letterSpacing: "0.08em", color: "var(--ink-2)", marginBottom: "8px" }}>COVERED SECURITY DOMAINS:</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            {["Web App Testing", "Network Enumeration", "OSINT", "Information Gathering", "Exploitation", "Forensics"].map((tag) => (
+              <span key={tag} style={{
+                fontSize: "10px",
+                padding: "3px 8px",
+                borderRadius: "4px",
+                background: "var(--surface-0)",
+                border: "1px solid var(--border-hairline)",
+                color: "var(--ink-1)",
+              }}>
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // GirlScript Summer of Code
+  return (
+    <div
+      className="cs-pipeline-card mono"
+      style={{
+        background: "var(--surface-1)",
+        border: "1px solid var(--border-default)",
+        borderRadius: "12px",
+        padding: "24px 28px",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        boxShadow: "0 24px 48px rgba(0,0,0,0.18)",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-hairline)", paddingBottom: "12px" }}>
+        <span style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.1em", color: "var(--highlight-blue)" }}>OPEN SOURCE WORKFLOW</span>
+        <span style={{ fontSize: "11px", color: "var(--ink-2)" }}>GSSoC 2026 · CONTRIBUTOR</span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", margin: "16px 0" }}>
+        {[
+          { step: "ISSUE", label: "Triage & Requirements", desc: "Reproducing bugs & scoping feature needs", color: "#EAB308" },
+          { step: "PATCH", label: "Clean Implementation", desc: "Modular, high-performance clean architecture", color: "var(--highlight-gold)" },
+          { step: "REVIEW", label: "Maintainer Iteration", desc: "Peer reviews & addressing maintainer feedback", color: "var(--highlight-blue)" },
+          { step: "MERGE", label: "Production Release", desc: "Shipped & merged into upstream repositories", color: "#22C55E" },
+        ].map((item) => (
+          <div key={item.step} style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            background: "var(--surface-0)",
+            padding: "8px 10px",
+            borderRadius: "6px",
+            border: "1px solid var(--border-hairline)",
+          }}>
+            <span style={{ fontSize: "10px", fontWeight: "800", color: item.color, minWidth: "48px" }}>[{item.step}]</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "12px", color: "var(--ink-1)", fontWeight: "600" }}>{item.label}</div>
+              <div style={{ fontSize: "10px", color: "var(--ink-2)" }}>{item.desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--ink-2)", borderTop: "1px solid var(--border-hairline)", paddingTop: "10px" }}>
+        <span>CLEAN ARCHITECTURE STANDARDS</span>
+        <span style={{ color: "#22C55E" }}>UPSTREAM SYNCED</span>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    PROJECT SLIDE — one case-study card (visual column + copy column)
    ═══════════════════════════════════════════════════════════════════ */
 function ProjectSlide({ project, index, hue, eager, active, scrubActive, onOpen }: {
@@ -565,8 +726,6 @@ function ProjectSlide({ project, index, hue, eager, active, scrubActive, onOpen 
   const tags = project.tags as readonly string[];
   const metric = (project as { metric?: string }).metric ?? tags[0];
   const note = (project as { note?: string }).note;
-  const hasImage = "images" in project && project.images && project.images.length > 0;
-  const pipeline = (project as { pipeline?: readonly string[] }).pipeline;
 
   /* Touch-only: tap a tag to toggle its glow on/off (desktop keeps :hover,
      and stays untouched — no extra tab stops). */
@@ -599,45 +758,13 @@ function ProjectSlide({ project, index, hue, eager, active, scrubActive, onOpen 
       inert={scrubActive && !active ? true : undefined}
     >
       {/* LEFT — visual column */}
-      {hasImage ? (
-        <ProjectVisual project={project} hue={hue} priority={index === 0} eager={eager} onOpen={onOpen} />
-      ) : (
-        <div className="cs-visual-col">
-          <CometCard rotateDepth={10} translateDepth={6}>
-            <div className="cs-visual" style={{ "--card-hue": hue } as React.CSSProperties}>
-              <div className="sd-card-accent" aria-hidden="true" />
-              {pipeline ? (
-                <div
-                  className="sd-pipeline"
-                  style={{ background: `hsl(${hue.split(",")[0]}, 15%, 8%)` }}
-                  aria-label="Processing pipeline"
-                >
-                  {pipeline.map((step, si, arr) => (
-                    <React.Fragment key={step}>
-                      <div className="sd-pipeline-node" style={{ animationDelay: `${si * 0.4}s` }}>
-                        {step}
-                      </div>
-                      {si < arr.length - 1 && (
-                        <div className="sd-pipeline-wire">
-                          <div className="sd-pipeline-pulse" style={{ animationDelay: `${si * 0.4}s` }} />
-                        </div>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
-              ) : (
-                <div
-                  className="sd-placeholder"
-                  style={{ background: `hsl(${hue.split(",")[0]}, 12%, 8%)` }}
-                  aria-hidden="true"
-                >
-                  <span className="sd-placeholder-label mono">{project.title.toUpperCase()}</span>
-                </div>
-              )}
-            </div>
-          </CometCard>
-        </div>
-      )}
+      <div className="cs-visual-col">
+        <CometCard rotateDepth={10} translateDepth={6}>
+          <div className="cs-visual" style={{ "--card-hue": hue, background: "transparent", border: "none" } as React.CSSProperties}>
+            <ProjectVisualCard project={project} hue={hue} />
+          </div>
+        </CometCard>
+      </div>
 
       {/* RIGHT — copy */}
       <div className="cs-text">
@@ -1123,15 +1250,17 @@ export default function StickyDeckSection({
                   eager={eager}
                   active={i === activeSlide}
                   scrubActive={scrubActive}
-                  onOpen={(start) =>
+                  onOpen={(start) => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const _p = project as any;
                     setLightbox({
-                      images: [...((project.images ?? []) as readonly string[])],
-                      alts: [...((project.imageAlts ?? []) as readonly string[])],
+                      images: [...((_p.images ?? []) as readonly string[])],
+                      alts: [...((_p.imageAlts ?? []) as readonly string[])],
                       title: project.title,
                       hue,
                       start,
-                    })
-                  }
+                    });
+                  }}
                 />
               );
             })}
@@ -1169,122 +1298,54 @@ export default function StickyDeckSection({
       <div className="more-work">
         <div className="container">
           <header className="more-work-header">
-            <span className="ed-eyebrow">More work</span>
-            <h3>Additional systems</h3>
+            <span className="ed-eyebrow">Background</span>
+            <h3>Experience &amp; <em>education</em></h3>
           </header>
           <div className="more-work-list">
-            {SECONDARY_PROJECTS.map((project, index) => {
-              const links =
-                (project as { links?: readonly { label: string; href: string }[] }).links ??
-                [{ label: "View Source", href: project.github }];
-              const expanded = expandedId === project.id;
-              const panelId = `more-work-panel-${project.id}`;
-              /* Only the first few tiles render inline; the rest are one
-                 click away in the lightbox. Eight tiles meant 2804px of
-                 content behind a native scrollbar inside a 1043px strip,
-                 and eight image requests the moment a row first opened. */
-              const inlineImages = project.images.slice(0, INLINE_TILES);
-              const overflowCount = project.images.length - inlineImages.length;
-              const openLightbox = (start: number) => {
-                setLightbox({
-                  images: [...(project.images as readonly string[])],
-                  alts: [...((project.imageAlts ?? []) as readonly string[])],
-                  title: project.title,
-                  hue: hueOf(project.id),
-                  start,
-                });
-              };
+            {SECONDARY_PROJECTS.map((item, index) => {
+              const links = item.links ?? [];
+              const expanded = expandedId === item.id;
+              const panelId = `more-work-panel-${item.id}`;
               return (
                 <article
                   className={`more-work-item${expanded ? " is-expanded" : ""}`}
-                  key={project.id}
+                  key={item.id}
                 >
                   <button
                     type="button"
                     className="more-work-row"
                     aria-expanded={expanded}
                     aria-controls={panelId}
-                    onClick={() => setExpandedId(expanded ? null : project.id)}
+                    onClick={() => setExpandedId(expanded ? null : item.id)}
                   >
-                    <span className="more-work-index mono">{pad(index + 4)}</span>
+                    <span className="more-work-index mono">{pad(index + 1)}</span>
                     <span className="more-work-title">
-                      <h4>{project.title}</h4>
-                      <p>{project.subtitle}</p>
+                      <h4>{item.title}</h4>
+                      <p>{item.subtitle}</p>
                     </span>
-                    <strong>{project.metric}</strong>
+                    <strong>{item.metric}</strong>
                     <span className="more-work-chevron" aria-hidden="true">+</span>
                   </button>
 
                   <div id={panelId} className="more-work-panel">
                     <div className="more-work-panel-inner">
-                      <p className="more-work-desc">{project.description}</p>
-                      <p className="more-work-tech mono">{project.tech}</p>
-                      <div className="more-work-links">
-                        {links.map((link) => (
-                          <a
-                            key={link.href}
-                            href={link.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <span>{link.label}</span>
-                            <ArrowUpRightIcon />
-                          </a>
-                        ))}
-                      </div>
-                      <div className="more-work-strip">
-                        {inlineImages.map((src, imageIndex) => {
-                          const alt = project.imageAlts?.[imageIndex] ?? project.title;
-                          return (
-                            <button
-                              key={src}
-                              type="button"
-                              className="more-work-thumb"
-                              aria-label={`View ${alt} enlarged`}
-                              onClick={(event) => {
-                                /* The row header owns expand/collapse — keep the
-                                   click from bubbling or the disclosure closes
-                                   underneath the lightbox. */
-                                event.stopPropagation();
-                                openLightbox(imageIndex);
-                              }}
+                      <p className="more-work-desc">{item.description}</p>
+                      {item.tech && <p className="more-work-tech mono">{item.tech}</p>}
+                      {links.length > 0 && (
+                        <div className="more-work-links">
+                          {links.map((link) => (
+                            <a
+                              key={link.href}
+                              href={link.href}
+                              target="_blank"
+                              rel="noopener noreferrer"
                             >
-                              {/* sizes matches the fixed tile width exactly —
-                                  the previous 240px against a width:auto tile
-                                  made 7.2:1 diagrams render ~1085px from a
-                                  ~256px source (the blur). */}
-                              <Image
-                                src={src}
-                                alt={alt}
-                                width={680}
-                                height={300}
-                                quality={95}
-                                loading="lazy"
-                                /* breakpoint mirrors the 900px tile override
-                                   in evolution.css — keep them in sync */
-                                sizes="(max-width: 900px) 260px, 290px"
-                              />
-                            </button>
-                          );
-                        })}
-
-                        {overflowCount > 0 && (
-                          <button
-                            type="button"
-                            className="more-work-more"
-                            aria-label={`View all ${project.images.length} images of ${project.title}`}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openLightbox(0);
-                            }}
-                          >
-                            <span className="more-work-more-count mono">
-                              +{overflowCount}
-                            </span>
-                            <span>more</span>
-                          </button>
-                        )}
-                      </div>
+                              <span>{link.label}</span>
+                              <ArrowUpRightIcon />
+                            </a>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </article>
@@ -1302,7 +1363,7 @@ export default function StickyDeckSection({
         <div className="container sd-cta">
           <p>There&apos;s more on GitHub.</p>
           <a
-            href="https://github.com/Jonathan-Jesni?tab=repositories"
+            href="https://github.com/DamnYatin"
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-outline"

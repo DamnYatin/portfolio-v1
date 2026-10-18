@@ -19,12 +19,7 @@ import sharp from "sharp";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 
-const TARGET_DIRS = [
-  "public/assets/Bandwidth",
-  "public/assets/Ludex",
-  "public/assets/Modifed double u net",
-  "public/assets/Synthrescue",
-].map((d) => path.join(repoRoot, d));
+const TARGET_DIRS = [].map((d) => path.join(repoRoot, d));
 
 const MAX_WIDTH = 2560;
 const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg"]);

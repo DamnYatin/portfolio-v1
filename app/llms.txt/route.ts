@@ -1,6 +1,6 @@
 import { PROJECTS, BUILDING } from "@/lib/data";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://jonathanjesni.com";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://github.com/DamnYatin";
 
 // First sentence of a description field, used as a tight one-line gist.
 function firstSentence(text: string): string {
@@ -8,42 +8,14 @@ function firstSentence(text: string): string {
   return (match ? match[0] : text).trim();
 }
 
-// Loose normalization for "is this sentence basically just the subtitle
-// again?" comparisons — ignores case, punctuation, and "&" vs "and".
-function normalizeForComparison(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9\s]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 type ProjectLink = { label: string; href: string; demo?: boolean };
 
 function buildProjectsSection(): string {
   return PROJECTS.map((project) => {
     const links: readonly ProjectLink[] = "links" in project ? project.links : [];
-    const primaryHref = links.find((link) => link.label === "View Source")?.href ?? project.github;
-    const demoLink = links.find((link) => link.demo === true);
-
-    // SynthRescue's description opens by restating its subtitle almost
-    // verbatim (just different casing), so fall back to the second sentence
-    // for a non-redundant gist.
-    const sentences = project.description.split(/(?<=[.!?])\s+/).filter(Boolean);
+    const primaryHref = links.find((link) => link.label === "View Source" || link.label.startsWith("View"))?.href ?? project.github;
     const leadSentence = firstSentence(project.description);
-    const restatesSubtitle =
-      normalizeForComparison(leadSentence) === normalizeForComparison(project.subtitle);
-    const gist =
-      sentences.length > 1 && restatesSubtitle
-        ? firstSentence(sentences.slice(1).join(" "))
-        : leadSentence;
-
-    let line = `- [${project.title}](${primaryHref}): ${project.subtitle} — ${project.metric}. ${gist}`;
-    if (demoLink) {
-      line += ` Demo: ${demoLink.href}`;
-    }
-    return line;
+    return `- [${project.title}](${primaryHref}): ${project.subtitle} — ${project.metric}. ${leadSentence}`;
   }).join("\n");
 }
 
@@ -54,9 +26,9 @@ function buildBuildingSection(): string {
 }
 
 function buildBody(): string {
-  return `# Jonathan Jesni
+  return `# Yatin Mishra
 
-> AI/ML engineer working on computer vision and multi-agent systems; final-year CS at IIIT Pune (Class of 2027); open to Junior AI/ML roles and internships.
+> Second-year CS student at Ramdeobaba University, Nagpur (Class of 2029). I build fast developer tools in Rust, maintain open-source security tooling, and contribute to open source through GirlScript Summer of Code.
 
 ## Projects
 ${buildProjectsSection()}
@@ -65,10 +37,12 @@ ${buildProjectsSection()}
 ${buildBuildingSection()}
 
 ## Links
-- Site: ${SITE_URL}
-- GitHub: https://github.com/Jonathan-Jesni
-- LinkedIn: https://www.linkedin.com/in/jonathan-jesni/
-- Resume: ${SITE_URL}/assets/Jonathan_Resume.pdf
+- GitHub: https://github.com/DamnYatin
+- LinkedIn: https://www.linkedin.com/in/yatinmishra1
+- Resume: ${SITE_URL}/Yatin_Mishra_Resume.pdf
+- CodeChef: https://codechef.com/yatinmishra
+- LeetCode: https://leetcode.com/yatinmishra1
+- Codeforces: https://codeforces.com/profile/yatinmishra
 `;
 }
 
